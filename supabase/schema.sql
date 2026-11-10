@@ -189,3 +189,6 @@ on conflict (id) do nothing;
 --   where poll_id = 'main' group by 1, 2 having count(*) >= 5 order by 3 desc;
 -- 참여 인원 상한 바꾸기:   update public.choir_polls set max_votes = 80 where id = 'main';
 -- 표 하나 지우기:          delete from public.choir_votes where poll_id = 'main' and device_id = '...';
+
+-- 새로 만든 함수를 API가 바로 인식하도록 목록 새로고침
+notify pgrst, 'reload schema';
