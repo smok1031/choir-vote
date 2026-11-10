@@ -232,8 +232,8 @@ input[readonly] { background: transparent; color: var(--muted); border-style: da
   "use strict";
   var SUPABASE_URL = "https://vlaiziklxvpykzsuvinn.supabase.co";
   var SUPABASE_KEY = "sb_publishable_IZ5eqaUkNri2D1vKDud40g_XU_n6RsU";
-  var GROUP_ID = "main";
-  var CODE_KEY = "choir_admin_code";
+  var GROUP_ID = (new URLSearchParams(location.search).get("g") || "main").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "main";
+  var CODE_KEY = GROUP_ID === "main" ? "choir_admin_code" : "choir_admin_code:" + GROUP_ID;
 
   var $ = function (id) { return document.getElementById(id); };
   var state = { code: null, data: null, busy: false, votes: 0 };
@@ -277,7 +277,7 @@ input[readonly] { background: transparent; color: var(--muted); border-style: da
     $("status").innerHTML =
       "<span>투표 완료 <b>" + Number(d.completed) + " / " + Number(d.expected) + "</b>명</span>" +
       "<span>" + (d.completed >= d.expected ? "<b>결과 공개됨</b>" : "결과 비공개") + "</span>" +
-      '<a href="./" target="_blank" rel="noopener">투표 페이지 열기</a>';
+      '<a href="./' + (GROUP_ID === "main" ? "" : "?g=" + encodeURIComponent(GROUP_ID)) + '" target="_blank" rel="noopener">투표 페이지 열기</a>';
     $("f-title").value = d.title;
     $("f-desc").value = d.description || "";
     $("f-expected").value = d.expected;
