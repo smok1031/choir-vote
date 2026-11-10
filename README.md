@@ -4,7 +4,7 @@
 
 ## 처음 한 번 준비
 
-1. Supabase 대시보드 > SQL Editor > New query 에 `supabase/schema.sql` 전체를 붙여 넣고 Run.
+1. 합창단 전용 Supabase 프로젝트(합창단 선호도 조사)의 SQL Editor `supabase/schema.sql` 전체를 붙여 넣고 Run.
 2. 같은 곳에서 곡 제목과 마감 시각을 넣습니다.
    ```sql
    update public.choir_polls
