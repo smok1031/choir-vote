@@ -466,13 +466,11 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
     meta.innerHTML = html;
     meta.hidden = false;
   }
-  // 투표를 마친 화면은 30초마다 확인해서, 인원이 다 차면 결과로 바꿈
+  // 30초마다 확인: 인원이 다 차면 결과로, 운영진이 새 투표를 시작하면 투표지로 바뀜
   function startPolling() {
-    clearInterval(state.timer);
-    var g = state.group;
-    if (!g || g.closed || openTopics().length > 0) return;
+    if (state.timer) return;
     state.timer = setInterval(function () {
-      if (document.visibilityState === "visible" && !state.busy) load(true);
+      if (document.visibilityState === "visible" && !state.busy && !dlg.open) load(true);
     }, 30000);
   }
 
@@ -627,9 +625,15 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
       $("desc").textContent = g.description || "";
       renderMeta();
 
-      if (g.closed) renderResults();
-      else if (openTopics().length === 0) renderVoted();
-      else if (!silent) renderBallot();
+      var mode = g.closed ? "results" : openTopics().length === 0 ? "voted" : "ballot";
+      // 고르는 중인 투표지는 곡 구성이 그대로면 다시 그리지 않음 (선택이 날아가지 않게)
+      var songsKey = JSON.stringify(g.topics.map(function (t) { return [t.id, t.title, t.songs, hasMine(t)]; }));
+      if (!(silent && mode === "ballot" && state.mode === "ballot" && state.songsKey === songsKey)) {
+        if (mode === "results") renderResults();
+        else if (mode === "voted") renderVoted();
+        else renderBallot();
+      }
+      state.mode = mode; state.songsKey = songsKey;
       startPolling();
     } catch (e) {
       if (silent) return;
@@ -715,8 +719,7 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && state.group && !state.busy && !dlg.open &&
-        !state.group.closed && openTopics().length === 0) load(true);
+    if (document.visibilityState === "visible" && state.group && !state.busy && !dlg.open) load(true);
   });
 
   load();

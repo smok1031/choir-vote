@@ -131,6 +131,25 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
+input[readonly] { background: transparent; color: var(--muted); border-style: dashed; }
+.lockline { font-size: 13px; color: var(--muted); margin: 0 0 8px; word-break: keep-all; }
+.danger h2 { color: var(--accent); }
+.danger p { margin: 0 0 12px; color: var(--muted); word-break: keep-all; font-size: 14px; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+.btn.plain { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row .btn { flex: 1 1 140px; }
+.confirm { border-top: 1px dashed var(--line); margin-top: 14px; padding-top: 14px; }
+.confirm b { color: var(--ink); }
+.rounds { display: grid; gap: 10px; }
+.round { border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.round-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+.round-head strong { font-family: var(--serif); }
+.round-head span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.round dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+.round dt { color: var(--muted); }
+.round dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.empty { font-size: 14px; color: var(--muted); margin: 0; }
 .gate { display: grid; gap: 10px; }
 .gate .btn { width: 100%; }
 [hidden] { display: none !important; }
@@ -141,7 +160,7 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
 <main class="wrap">
   <p class="eyebrow">관리자 전용</p>
   <h1>합창곡 투표 편집</h1>
-  <p class="lead">주제 이름과 곡 제목, 공개 인원을 고치고 저장하면 투표 페이지에 바로 반영됩니다.</p>
+  <p class="lead">주제 이름과 곡 제목, 공개 인원을 고치고 저장하면 투표 페이지에 바로 반영됩니다. 다른 곡으로 다시 투표하려면 아래 "새 투표 시작"을 누르세요.</p>
 
   <div id="notice" class="notice" role="status" hidden></div>
 
@@ -180,6 +199,24 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
     </section>
 
     <div id="topics"></div>
+
+    <section class="block danger" id="roundBlock">
+      <div class="block-head"><h2>새 투표 시작</h2></div>
+      <p id="roundText"></p>
+      <div class="row"><button class="btn ghost" type="button" id="newRoundBtn">새 투표 시작</button></div>
+      <div class="confirm" id="roundConfirm" hidden>
+        <p id="roundConfirmText"></p>
+        <div class="row">
+          <button class="btn plain" type="button" id="roundCancel">취소</button>
+          <button class="btn" type="button" id="roundGo">보관하고 새로 시작</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>보관함</h2><span class="count" id="roundCount"></span></div>
+      <div class="rounds" id="rounds"></div>
+    </section>
   </form>
 </main>
 
@@ -199,7 +236,7 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
   var CODE_KEY = "choir_admin_code";
 
   var $ = function (id) { return document.getElementById(id); };
-  var state = { code: null, data: null, busy: false };
+  var state = { code: null, data: null, busy: false, votes: 0 };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -254,22 +291,43 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
         '<span class="count">' + Number(t.votes || 0) + "표</span></div>" +
         '<div class="field"><label for="t' + ti + '-title">주제 이름</label>' +
         '<input type="text" id="t' + ti + '-title" data-role="ttitle" maxlength="60" value="' + esc(t.title) + '"></div>' +
-        '<span class="label">곡 제목</span><div style="display:grid;gap:8px;margin-top:6px">';
+        '<span class="label">곡 제목</span>' +
+        (t.votes > 0 ? '<p class="lockline">표가 들어와 있어 곡 제목은 잠겨 있습니다. 바꾸려면 아래 "새 투표 시작"을 누르세요.</p>' : "") +
+        '<div style="display:grid;gap:8px;margin-top:6px">';
       t.songs.forEach(function (s, si) {
         html += '<div class="song-row"><span class="mark" aria-hidden="true">' + (si + 1) + "</span>" +
-          '<input type="text" id="t' + ti + "-s" + si + '" data-role="song" maxlength="80" aria-label="주제 ' + (ti + 1) + " " + (si + 1) + '번 곡" value="' + esc(s) + '"></div>';
+          '<input type="text" id="t' + ti + "-s" + si + '" data-role="song" maxlength="80" aria-label="주제 ' + (ti + 1) + " " + (si + 1) + '번 곡" value="' + esc(s) + '"' + (t.votes > 0 ? " readonly" : "") + "></div>";
       });
       html += "</div></section>";
     });
     $("topics").innerHTML = html;
-    var lock = $("lockNote");
-    if (anyVotes > 0) {
-      lock.textContent = "이미 표가 " + anyVotes + "개 들어와 있습니다. 표는 곡 번호로 저장되므로 오타 수정은 괜찮지만, 곡을 다른 곡으로 바꾸거나 순서를 바꾸면 기존 표가 바뀐 곡으로 집계됩니다.";
-      lock.hidden = false;
-    } else {
-      lock.hidden = true;
-    }
+    $("lockNote").hidden = true;
+    state.votes = anyVotes;
+    $("roundText").textContent = anyVotes > 0
+      ? "지금까지 들어온 표 " + anyVotes + "개와 1위 결과를 보관함에 옮기고, 모두 처음부터 다시 투표하게 합니다. 시작한 뒤에는 곡 제목을 새로 입력할 수 있습니다."
+      : "아직 들어온 표가 없어서 지금은 바로 곡 제목을 고칠 수 있습니다.";
+    $("roundConfirm").hidden = true;
+    renderRounds(d.rounds || []);
     markDirty();
+  }
+
+  function fmtDate(iso) {
+    var d = new Date(iso), hh = d.getHours(), mm = d.getMinutes();
+    return d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate() + " " +
+      (hh < 12 ? "오전 " : "오후 ") + ((hh % 12) || 12) + ":" + String(mm).padStart(2, "0");
+  }
+  function renderRounds(list) {
+    $("roundCount").textContent = list.length ? list.length + "회" : "";
+    if (!list.length) { $("rounds").innerHTML = '<p class="empty">아직 보관된 투표가 없습니다. 새 투표를 시작하면 지난 투표의 1위 곡이 여기에 남습니다.</p>'; return; }
+    $("rounds").innerHTML = list.map(function (r) {
+      var rows = (r.topics || []).map(function (t) {
+        var w = t.winners || [];
+        return "<dt>" + esc(t.title) + "</dt><dd>" + (w.length ? w.map(esc).join(", ") + (w.length > 1 ? " (공동 1위)" : "") : "표 없음") + "</dd>";
+      }).join("");
+      return '<article class="round"><div class="round-head"><strong>' + r.round_no + "회차</strong>" +
+        "<span>" + esc(fmtDate(r.archived_at)) + " 보관</span>" +
+        "<span>완료 " + Number(r.completed) + " / " + Number(r.expected) + "명</span></div><dl>" + rows + "</dl></article>";
+    }).join("");
   }
 
   function collect() {
@@ -312,6 +370,10 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
     $("dirty").textContent = bad ? "빈 칸 " + bad + "개를 채워 주세요" : n ? "바뀐 칸 " + n + "개, 아직 저장 안 됨" : "바뀐 내용 없음";
     $("saveBtn").disabled = state.busy || n === 0 || bad > 0;
     $("saveBtn").textContent = state.busy ? "저장하는 중..." : "저장";
+    var nb = $("newRoundBtn");
+    nb.disabled = state.busy || !state.votes || n > 0;
+    nb.textContent = n > 0 && state.votes ? "바뀐 내용을 먼저 저장하세요" : "새 투표 시작";
+    if (nb.disabled) $("roundConfirm").hidden = true;
   }
 
   var REASONS = {
@@ -321,7 +383,9 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
     bad_expected: "공개 인원은 1명 이상 1000명 이하의 정수로 입력해 주세요.",
     bad_topic_title: "주제 이름을 1자 이상 60자 이하로 입력해 주세요.",
     bad_song_title: "곡 제목을 1자 이상 80자 이하로 입력해 주세요.",
-    songs_locked: "표가 들어온 주제는 곡 개수를 바꿀 수 없습니다."
+    songs_locked: "표가 들어온 주제는 곡 제목을 바꿀 수 없습니다. 새 투표를 시작한 뒤 바꿔 주세요.",
+    votes_changed: "그 사이 표가 더 들어왔습니다. 최신 상태를 불러왔으니 다시 확인해 주세요.",
+    nothing_to_archive: "보관할 표가 없습니다."
   };
 
   async function save() {
@@ -357,6 +421,39 @@ input.invalid, textarea.invalid { border-color: var(--accent); background: var(-
     $("gate").hidden = false; $("editor").hidden = true; $("dock").hidden = true;
     if (msg) notice(msg);
   }
+
+  $("newRoundBtn").addEventListener("click", function () {
+    $("roundConfirmText").innerHTML = "표 <b>" + Number(state.votes) + "개</b>와 지금의 1위 결과를 보관함에 옮깁니다. " +
+      "투표 페이지는 0명부터 다시 시작하고, 이미 투표한 단원도 다시 투표할 수 있습니다. 보관한 표는 새 투표에 섞이지 않습니다.";
+    $("roundConfirm").hidden = false;
+    $("roundGo").focus();
+  });
+  $("roundCancel").addEventListener("click", function () { $("roundConfirm").hidden = true; });
+  $("roundGo").addEventListener("click", async function () {
+    if (state.busy) return;
+    state.busy = true; $("roundGo").disabled = true; $("roundGo").textContent = "보관하는 중..."; markDirty(); notice("");
+    try {
+      var r = await rpc("choir_admin_new_round", { p_group: GROUP_ID, p_code: state.code, p_expect_votes: state.votes });
+      state.busy = false;
+      if (r && r.ok) {
+        render(r);
+        notice("새 투표를 시작했습니다. 지난 기록은 보관함에 있고, 이제 곡 제목을 새로 입력할 수 있습니다.", true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        notice(REASONS[r && r.reason] || "새 투표를 시작하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+        if (r && r.reason === "votes_changed") {
+          try { var fresh = await rpc("choir_admin_load", { p_group: GROUP_ID, p_code: state.code }); if (fresh && fresh.ok) render(fresh); } catch (e2) {}
+        }
+        markDirty();
+      }
+    } catch (e) {
+      state.busy = false;
+      notice("연결이 불안정해 새 투표를 시작하지 못했습니다. 다시 눌러 주세요.");
+      markDirty();
+    } finally {
+      $("roundGo").disabled = false; $("roundGo").textContent = "보관하고 새로 시작";
+    }
+  });
 
   $("gateForm").addEventListener("submit", function (e) {
     e.preventDefault();

@@ -6,6 +6,7 @@
 --   choir_groups  투표 묶음 하나 = 페이지 하나 (제목, 안내문, 참여 인원)
 --   choir_polls   묶음 안의 주제 (주제 이름, 곡 목록)
 --   choir_votes   표 (주제마다 기기당 한 표)
+--   choir_rounds, choir_votes_archive  "새 투표 시작" 때 옮겨 둔 지난 회차 기록과 표
 --
 -- 원칙
 --   1) 표와 설정은 브라우저에서 직접 읽거나 쓸 수 없고, 아래 함수(RPC)로만 다룬다.
@@ -15,6 +16,7 @@
 --   4) 모든 주제를 투표한 기기가 정한 인원(기본 15)에 이르면 투표가 닫히고,
 --      그때 주제마다 1위 곡만 공개된다. 나머지 곡의 득표는 밖으로 내보내지 않는다.
 --   5) 제목과 곡 수정은 관리 코드를 아는 사람만 할 수 있다 (코드는 해시로만 저장).
+--   6) 표가 들어온 주제는 곡 제목을 바꿀 수 없다. 바꾸려면 "새 투표 시작"으로 지난 표를 보관함에 옮긴다.
 
 create extension if not exists pgcrypto;
 
@@ -70,13 +72,40 @@ create table if not exists public.choir_votes (
 );
 create index if not exists choir_votes_fp_idx on public.choir_votes(poll_id, fp);
 
+-- 보관함: 회차 요약 (그때의 제목, 주제, 곡, 득표, 1위)과 표 원본
+create table if not exists public.choir_rounds (
+  id bigint generated always as identity primary key,
+  group_id text not null references public.choir_groups(id) on delete cascade,
+  round_no int not null,
+  archived_at timestamptz not null default now(),
+  completed int not null,
+  expected int not null,
+  snapshot jsonb not null,
+  unique (group_id, round_no)
+);
+create table if not exists public.choir_votes_archive (
+  round_id bigint not null references public.choir_rounds(id) on delete cascade,
+  poll_id text not null,
+  device_id uuid not null,
+  fp text not null,
+  song int not null,
+  flagged boolean not null,
+  ip_hash text,
+  created_at timestamptz not null,
+  primary key (round_id, poll_id, device_id)
+);
+
 alter table public.choir_groups enable row level security;
 alter table public.choir_polls enable row level security;
 alter table public.choir_votes enable row level security;
+alter table public.choir_rounds enable row level security;
+alter table public.choir_votes_archive enable row level security;
 -- 정책을 만들지 않으므로 anon, authenticated 모두 직접 접근 불가
 revoke all on public.choir_groups from anon, authenticated;
 revoke all on public.choir_polls from anon, authenticated;
 revoke all on public.choir_votes from anon, authenticated;
+revoke all on public.choir_rounds from anon, authenticated;
+revoke all on public.choir_votes_archive from anon, authenticated;
 
 -- 2) 도우미 ------------------------------------------------------------------------
 create or replace function public.choir_ip_hash(p_salt text)
@@ -238,6 +267,15 @@ begin
         'votes', (select count(*) from public.choir_votes v where v.poll_id = p.id)
       ) order by p.sort, p.id)
       from public.choir_polls p where p.group_id = p_group
+    ), '[]'::json),
+    'rounds', coalesce((
+      select json_agg(json_build_object(
+        'round_no', r.round_no, 'archived_at', r.archived_at,
+        'completed', r.completed, 'expected', r.expected,
+        'topics', (select json_agg(json_build_object('title', t->>'title', 'winners', t->'winner_titles'))
+                   from jsonb_array_elements(r.snapshot->'topics') t)
+      ) order by r.round_no desc)
+      from public.choir_rounds r where r.group_id = p_group
     ), '[]'::json)
   );
 end $$;
@@ -245,7 +283,7 @@ end $$;
 --    p_data 예: {"title": "...", "description": "...", "expected": 15,
 --               "topics": [{"id": "topic-1", "title": "...", "songs": ["..", "..", "..", "..", ".."]}, ...]}
 --    주제를 새로 만들거나 지우지는 않고, 있는 주제의 이름과 곡 제목만 바꾼다.
---    표가 들어온 주제는 곡 개수를 바꿀 수 없다 (표는 곡 순번으로 저장되므로).
+--    표가 들어온 주제는 곡 제목을 바꿀 수 없다 (표는 곡 순번으로 저장되므로, 바꾸면 결과가 엉뚱한 곡으로 보임).
 create or replace function public.choir_admin_save(p_group text, p_code text, p_data jsonb)
 returns json language plpgsql volatile security definer set search_path = public as $$
 declare
@@ -291,7 +329,8 @@ begin
       return json_build_object('ok', false, 'reason', 'bad_song_title', 'topic', p.id);
     end if;
     select count(*) into n_votes from public.choir_votes where poll_id = p.id;
-    if n_votes > 0 and jsonb_array_length(new_songs) <> jsonb_array_length(p.songs) then
+    if n_votes > 0 and (select jsonb_agg(btrim(x.e #>> '{}') order by x.o)
+                        from jsonb_array_elements(new_songs) with ordinality as x(e, o)) is distinct from p.songs then
       return json_build_object('ok', false, 'reason', 'songs_locked', 'topic', p.id);
     end if;
   end loop;
@@ -320,6 +359,63 @@ begin
   return public.choir_admin_load(p_group, p_code);
 end $$;
 
+-- 새 투표 시작: 지금까지의 표와 결과를 보관함에 옮기고 모두 처음부터 투표하게 한다
+--    p_expect_votes: 화면에서 본 현재 표 수. 그 사이 표가 더 들어왔으면 거부해서 확인 없이 지워지는 일을 막는다.
+create or replace function public.choir_admin_new_round(p_group text, p_code text, p_expect_votes int)
+returns json language plpgsql volatile security definer set search_path = public as $$
+declare
+  g public.choir_groups;
+  n int;
+  rno int;
+  rid bigint;
+  snap jsonb;
+begin
+  if not public.choir_is_admin(p_group, p_code) then
+    return json_build_object('ok', false, 'reason', 'bad_code');
+  end if;
+  perform pg_advisory_xact_lock(hashtext('choir:' || p_group));
+  select * into g from public.choir_groups where id = p_group;
+
+  select count(*) into n from public.choir_votes v join public.choir_polls p on p.id = v.poll_id where p.group_id = p_group;
+  if p_expect_votes is null or n <> p_expect_votes then
+    return json_build_object('ok', false, 'reason', 'votes_changed', 'votes', n);
+  end if;
+  if n = 0 then
+    return json_build_object('ok', false, 'reason', 'nothing_to_archive');
+  end if;
+
+  select jsonb_build_object(
+    'title', g.title,
+    'description', g.description,
+    'topics', coalesce(jsonb_agg(jsonb_build_object(
+      'id', p.id,
+      'title', p.title,
+      'songs', p.songs,
+      'counts', (select jsonb_agg((select count(*) from public.choir_votes v where v.poll_id = p.id and v.song = i - 1) order by i)
+                 from generate_series(1, jsonb_array_length(p.songs)) as i),
+      'winner_titles', coalesce((
+        select jsonb_agg(p.songs->c.song order by c.song) from (
+          select v.song, rank() over (order by count(*) desc) as rk
+          from public.choir_votes v where v.poll_id = p.id group by v.song
+        ) c where c.rk = 1), '[]'::jsonb)
+    ) order by p.sort, p.id), '[]'::jsonb)
+  ) into snap
+  from public.choir_polls p where p.group_id = p_group;
+
+  select coalesce(max(round_no), 0) + 1 into rno from public.choir_rounds where group_id = p_group;
+  insert into public.choir_rounds (group_id, round_no, completed, expected, snapshot)
+  values (p_group, rno, public.choir_completed(p_group), g.expected_voters, snap)
+  returning id into rid;
+
+  insert into public.choir_votes_archive (round_id, poll_id, device_id, fp, song, flagged, ip_hash, created_at)
+  select rid, v.poll_id, v.device_id, v.fp, v.song, v.flagged, v.ip_hash, v.created_at
+  from public.choir_votes v join public.choir_polls p on p.id = v.poll_id where p.group_id = p_group;
+
+  delete from public.choir_votes v using public.choir_polls p where p.id = v.poll_id and p.group_id = p_group;
+
+  return public.choir_admin_load(p_group, p_code);
+end $$;
+
 -- 6) 권한 --------------------------------------------------------------------------
 revoke all on function public.choir_ip_hash(text) from public, anon, authenticated;
 revoke all on function public.choir_is_admin(text, text) from public, anon, authenticated;
@@ -328,10 +424,12 @@ revoke all on function public.choir_group(text, uuid) from public;
 revoke all on function public.choir_cast_votes(text, uuid, text, jsonb) from public;
 revoke all on function public.choir_admin_load(text, text) from public;
 revoke all on function public.choir_admin_save(text, text, jsonb) from public;
+revoke all on function public.choir_admin_new_round(text, text, int) from public;
 grant execute on function public.choir_group(text, uuid) to anon, authenticated;
 grant execute on function public.choir_cast_votes(text, uuid, text, jsonb) to anon, authenticated;
 grant execute on function public.choir_admin_load(text, text) to anon, authenticated;
 grant execute on function public.choir_admin_save(text, text, jsonb) to anon, authenticated;
+grant execute on function public.choir_admin_new_round(text, text, int) to anon, authenticated;
 
 -- 7) 첫 묶음과 주제 두 개 (이미 있으면 그대로 둠) ---------------------------------------------
 insert into public.choir_groups (id, title, description)
@@ -356,6 +454,7 @@ on conflict (id) do nothing;
 --                          from public.choir_votes group by 1, 2 order by 1, 2;
 -- 확인 필요 표 보기:       select * from public.choir_votes where flagged order by created_at;
 -- 표 하나 지우기:          delete from public.choir_votes where device_id = '...';
+-- 지난 회차 전체 득표 보기: select round_no, archived_at, snapshot from public.choir_rounds order by round_no;
 -- 몰표 의심 확인 (같은 IP에서 같은 분에 5표 이상, 연습실 와이파이처럼 정상적으로 겹칠 수도 있음):
 --   select ip_hash, date_trunc('minute', created_at) as 분, count(*) from public.choir_votes
 --   group by 1, 2 having count(*) >= 5 order by 3 desc;
