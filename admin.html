@@ -149,6 +149,7 @@ input[readonly] { background: transparent; color: var(--muted); border-style: da
 .round dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
 .round dt { color: var(--muted); }
 .round dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.allavg { font-size: 12px; color: var(--muted); }
 .empty { font-size: 14px; color: var(--muted); margin: 0; }
 .gate { display: grid; gap: 10px; }
 .gate .btn { width: 100%; }
@@ -194,7 +195,7 @@ input[readonly] { background: transparent; color: var(--muted); border-style: da
           <button type="button" id="expPlus" aria-label="한 명 늘리기">+</button>
           <span>명</span>
         </div>
-        <p class="help">두 주제의 곡을 모두 평가한 사람이 이 인원이 되면 조사가 닫히고 주제별 평균 점수 1위 곡만 공개됩니다.</p>
+        <p class="help">두 주제의 곡을 모두 평가한 사람이 이 인원이 되면 조사가 닫히고 모든 곡의 평균 점수와 점수 분포가 공개됩니다.</p>
       </div>
     </section>
 
@@ -322,7 +323,11 @@ input[readonly] { background: transparent; color: var(--muted); border-style: da
     $("rounds").innerHTML = list.map(function (r) {
       var rows = (r.topics || []).map(function (t) {
         var w = t.winners || [];
-        return "<dt>" + esc(t.title) + "</dt><dd>" + (w.length ? w.map(esc).join(", ") + (w.length > 1 ? " (공동 1위)" : "") + (t.avg != null ? ", 평균 " + Number(t.avg).toFixed(1) + "점" : "") : "응답 없음") + "</dd>";
+        var all = (t.songs && t.avgs) ? t.songs.map(function (s, i) { return [s, t.avgs[i]]; })
+          .filter(function (x) { return x[1] != null; })
+          .sort(function (x, y) { return Number(y[1]) - Number(x[1]); })
+          .map(function (x) { return esc(x[0]) + " " + Number(x[1]).toFixed(1); }).join(", ") : "";
+        return "<dt>" + esc(t.title) + "</dt><dd>" + (w.length ? "1위 " + w.map(esc).join(", ") + (w.length > 1 ? " (공동)" : "") + (all ? '<br><span class="allavg">' + all + "</span>" : "") : "응답 없음") + "</dd>";
       }).join("");
       return '<article class="round"><div class="round-head"><strong>' + r.round_no + "회차</strong>" +
         "<span>" + esc(fmtDate(r.archived_at)) + " 보관</span>" +

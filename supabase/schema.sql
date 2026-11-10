@@ -14,7 +14,7 @@
 --   3) 기기 지문이 같은데 기기 ID가 다른 응답은 받되 "확인 필요"로 표시한다.
 --      (같은 기종, 같은 OS를 쓰는 다른 단원을 막지 않기 위해서)
 --   4) 모든 주제에 응답한 기기가 정한 인원(기본 15)에 이르면 조사가 닫히고,
---      그때 주제마다 평균 점수 1위 곡과 그 평균만 공개된다. 다른 곡의 점수는 밖으로 내보내지 않는다.
+--      그때 주제마다 모든 곡의 평균 점수, 순위, 점수 분포(1~5점 각각 몇 명)가 공개된다. 그 전에는 어떤 점수도 내보내지 않는다.
 --   5) 제목과 곡 수정은 관리 코드를 아는 사람만 할 수 있다 (코드는 해시로만 저장).
 --   6) 응답이 들어온 주제는 곡 제목을 바꿀 수 없다. 바꾸려면 "새 투표 시작"으로 지난 응답을 보관함에 옮긴다.
 
@@ -174,7 +174,14 @@ returns table(song int, avg numeric, n int) language sql stable set search_path 
   group by s.i order by s.i;
 $$;
 
--- 3) 페이지 정보: 주제, 곡, 이 기기의 점수, 공개 후 1위 곡과 평균 -----------------------------
+-- 곡별 점수 분포 [1점 인원, 2점 인원, ..., 5점 인원]
+create or replace function public.choir_song_dist(p_poll text, p_song int)
+returns json language sql stable set search_path = public as $$
+  select json_agg((select count(*) from public.choir_votes v where v.poll_id = p_poll and v.scores[p_song + 1] = k) order by k)
+  from generate_series(1, 5) as k;
+$$;
+
+-- 3) 페이지 정보: 주제, 곡, 이 기기의 점수, 공개 후 모든 곡의 결과 ------------------------------
 drop function if exists public.choir_group(text, uuid);
 create or replace function public.choir_group(p_group text, p_device uuid)
 returns json language sql stable security definer set search_path = public as $$
@@ -202,6 +209,11 @@ returns json language sql stable security definer set search_path = public as $$
             select coalesce(json_agg(json_build_object('song', a.song, 'avg', a.avg) order by a.song), '[]'::json)
             from public.choir_song_avgs(p.id) a
             where a.n > 0 and a.avg = (select max(b.avg) from public.choir_song_avgs(p.id) b)
+          ) else null end,
+        'results', case when g.completed >= g.expected_voters then (
+            select json_agg(json_build_object('song', a.song, 'avg', a.avg, 'n', a.n,
+                                              'dist', public.choir_song_dist(p.id, a.song)) order by a.song)
+            from public.choir_song_avgs(p.id) a
           ) else null end
       ) order by p.sort, p.id)
       from public.choir_polls p where p.group_id = g.id
@@ -302,7 +314,8 @@ begin
       select json_agg(json_build_object(
         'round_no', r.round_no, 'archived_at', r.archived_at,
         'completed', r.completed, 'expected', r.expected,
-        'topics', (select json_agg(json_build_object('title', t->>'title', 'winners', t->'winner_titles', 'avg', t->'winner_avg'))
+        'topics', (select json_agg(json_build_object('title', t->>'title', 'winners', t->'winner_titles', 'avg', t->'winner_avg',
+                                                     'songs', t->'songs', 'avgs', t->'avgs'))
                    from jsonb_array_elements(r.snapshot->'topics') t)
       ) order by r.round_no desc)
       from public.choir_rounds r where r.group_id = p_group
@@ -450,6 +463,7 @@ revoke all on function public.choir_ip_hash(text) from public, anon, authenticat
 revoke all on function public.choir_is_admin(text, text) from public, anon, authenticated;
 revoke all on function public.choir_completed(text) from public, anon, authenticated;
 revoke all on function public.choir_song_avgs(text) from public, anon, authenticated;
+revoke all on function public.choir_song_dist(text, int) from public, anon, authenticated;
 revoke all on function public.choir_group(text, uuid) from public;
 revoke all on function public.choir_cast_votes(text, uuid, text, jsonb) from public;
 revoke all on function public.choir_admin_load(text, text) from public;
@@ -464,7 +478,7 @@ grant execute on function public.choir_admin_new_round(text, text, int) to anon,
 -- 7) 첫 묶음과 주제 두 개 (이미 있으면 그대로 둠) ---------------------------------------------
 insert into public.choir_groups (id, title, description)
 values ('main', '합창곡 선호도 조사',
-        '곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 주제별 1위 곡이 공개됩니다.')
+        '곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 곡별 결과가 공개됩니다.')
 on conflict (id) do nothing;
 
 insert into public.choir_polls (id, group_id, sort, title, songs) values
@@ -480,7 +494,7 @@ on conflict (id) do nothing;
 -- 자주 쓰는 관리 명령 ---------------------------------------------------------------------
 -- 공개 인원 바꾸기:        update public.choir_groups set expected_voters = 14 where id = 'main';
 -- 진행 상황:               select public.choir_completed('main');
--- 곡별 평균 몰래 보기:     select * from public.choir_song_avgs('topic-1');  (topic-2도 같은 방법)
+-- 공개 전 곡별 평균 미리 보기:     select * from public.choir_song_avgs('topic-1');  (topic-2도 같은 방법)
 -- 확인 필요 응답 보기:     select * from public.choir_votes where flagged order by created_at;
 -- 응답 하나 지우기:        delete from public.choir_votes where device_id = '...';
 -- 지난 회차 기록 보기:     select round_no, archived_at, snapshot from public.choir_rounds order by round_no;

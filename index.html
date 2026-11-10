@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>합창곡 선호도 조사</title>
-<meta name="description" content="곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 주제별 1위 곡이 공개됩니다.">
+<meta name="description" content="곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 곡별 결과가 공개됩니다.">
 <meta property="og:title" content="합창곡 선호도 조사">
-<meta property="og:description" content="곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 주제별 1위 곡이 공개됩니다.">
+<meta property="og:description" content="곡마다 1점에서 5점까지 점수를 매겨 주세요. 모두 응답하면 곡별 결과가 공개됩니다.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F3EA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15181F" media="(prefers-color-scheme: dark)">
@@ -300,6 +300,22 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
 .avg { flex: none; text-align: right; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .avg b { font-size: 20px; }
 .avg small { display: block; font-size: 11px; color: var(--muted); }
+.ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rk { padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); display: grid; gap: 8px; }
+.rk.top { border-color: var(--accent); background: var(--accent-soft); }
+.rk-head { display: flex; align-items: center; gap: 10px; }
+.rk-no { flex: none; width: 34px; font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rk.top .rk-no { color: var(--accent); }
+.rk .mark { width: 28px; height: 28px; font-size: 14px; }
+.rk.top .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.rk .title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-weight: 600; word-break: keep-all; overflow-wrap: anywhere; }
+.rk .r-mine { font-size: 12px; font-weight: 500; color: var(--muted); }
+.rk .r-bar { height: 8px; }
+.rk.top .r-bar i { background: var(--accent); }
+.dist { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.dist span { text-align: center; padding: 3px 0; border-radius: 6px; background: var(--paper); font-weight: 700; }
+.dist span.zero { color: var(--muted); font-weight: 500; }
+.dist em { font-style: normal; font-weight: 500; color: var(--muted); margin-right: 3px; }
 .results-topic h3 { font-family: var(--serif); font-size: 18px; margin: 0 0 4px; word-break: keep-all; }
 .results-topic .sub { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
 </style>
@@ -506,7 +522,7 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   function renderMeta() {
     var g = state.group, meta = $("meta");
     var html = "<span>참여 <b>" + Number(g.completed || 0) + " / " + Number(g.expected || 0) + "</b>명 완료</span>";
-    html += g.closed ? "<span><b>조사 종료</b></span>" : "<span>" + Number(g.expected || 0) + "명이 모두 응답하면 주제별 1위 곡 공개</span>";
+    html += g.closed ? "<span><b>조사 종료</b></span>" : "<span>" + Number(g.expected || 0) + "명이 모두 응답하면 결과 공개</span>";
     meta.innerHTML = html;
     meta.hidden = false;
   }
@@ -627,7 +643,7 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
       '<div class="done-icon">' + CHECK_SVG + "</div>" +
       "<h2>평가가 접수되었습니다</h2>" +
       "<p>참여해 주셔서 감사합니다. " + (left > 0 ? "아직 " + left + "명이 남았습니다. " : "") +
-      "모두 응답하면 이 페이지에서 주제별 1위 곡이 공개됩니다. 열어 두시면 자동으로 바뀝니다.</p>";
+      "모두 응답하면 이 페이지에서 곡별 결과가 공개됩니다. 열어 두시면 자동으로 바뀝니다.</p>";
     topics().forEach(function (t) {
       if (!hasMine(t)) return;
       html += '<div class="mine-block"><h3>' + esc(t.title) + "</h3>" + scoreList(t, t.mine) + "</div>";
@@ -643,24 +659,30 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   function renderResults() {
     dock.hidden = true;
     var g = state.group;
-    var html = '<section class="panel"><h2>조사 결과</h2><p>' + Number(g.expected || 0) + "명이 모두 응답했습니다. 주제별로 평균 점수가 가장 높은 곡입니다.</p>";
+    var html = '<section class="panel"><h2>조사 결과</h2><p>' + Number(g.expected || 0) + "명이 모두 응답했습니다. 주제별로 평균 점수가 높은 순서입니다.</p>";
     topics().forEach(function (t) {
-      var w = t.winners || [];
       var songs = t.songs || [];
-      html += '<div class="results-topic"><h3>' + esc(t.title) + "</h3>";
-      if (!w.length) {
-        html += '<p class="sub">응답이 없습니다</p>';
-      } else {
-        if (w.length > 1) html += '<p class="sub">공동 1위 ' + w.length + "곡</p>";
-        w.forEach(function (x) {
-          var mine = hasMine(t) ? t.mine[x.song] : null;
-          html += '<div class="winner">' + mark(x.song) + '<span class="title">' + esc(songs[x.song]) +
-            (mine != null ? '<small class="r-mine">내 점수 ' + mine + "점</small>" : "") + "</span>" +
-            '<span class="avg"><b>' + fmtAvg(x.avg) + "</b>점<small>평균</small></span>" +
-            '<span class="crown">1위</span></div>';
-        });
-      }
-      html += "</div>";
+      var rows = (t.results || []).slice().sort(function (x, y) { return Number(y.avg || 0) - Number(x.avg || 0) || x.song - y.song; });
+      var raters = rows.length ? Number(rows[0].n || 0) : 0;
+      html += '<div class="results-topic"><h3>' + esc(t.title) + '</h3><p class="sub">' + raters + "명 응답</p>";
+      if (!raters) { html += '<p class="sub">응답이 없습니다</p></div>'; return; }
+      html += '<ol class="ranks">';
+      var prevAvg = null, rank = 0;
+      rows.forEach(function (r, idx) {
+        if (r.avg !== prevAvg) { rank = idx + 1; prevAvg = r.avg; }
+        var top = rank === 1;
+        var mine = hasMine(t) ? t.mine[r.song] : null;
+        var dist = r.dist || [0, 0, 0, 0, 0];
+        html += '<li class="rk' + (top ? " top" : "") + '">' +
+          '<div class="rk-head"><span class="rk-no">' + rank + "위</span>" + mark(r.song) +
+            '<span class="title">' + esc(songs[r.song]) + (mine != null ? '<small class="r-mine">내 점수 ' + mine + "점</small>" : "") + "</span>" +
+            '<span class="avg"><b>' + fmtAvg(r.avg) + "</b>점<small>평균</small></span></div>" +
+          '<div class="r-bar" role="img" aria-label="평균 ' + fmtAvg(r.avg) + '점, 5점 만점"><i style="width:' + (Number(r.avg || 0) / 5 * 100) + '%"></i></div>' +
+          '<div class="dist" aria-label="점수 분포">' + [5, 4, 3, 2, 1].map(function (k) {
+            return '<span' + (dist[k - 1] ? "" : ' class="zero"') + "><em>" + k + "점</em>" + dist[k - 1] + "명</span>";
+          }).join("") + "</div></li>";
+      });
+      html += "</ol></div>";
     });
     if (Number(g.flagged) > 0) {
       html += '<p class="footnote">같은 기기에서 다시 응답한 것으로 의심되는 응답 ' + Number(g.flagged) +
