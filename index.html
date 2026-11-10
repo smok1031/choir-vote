@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>합창곡 선호도 조사</title>
+<meta name="description" content="다섯 곡 중 가장 부르고 싶은 곡 하나를 골라 주세요.">
+<meta property="og:title" content="합창곡 선호도 조사">
+<meta property="og:description" content="다섯 곡 중 가장 부르고 싶은 곡 하나를 골라 주세요. 한 기기에서 한 번만 투표할 수 있습니다.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#F7F3EA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15181F" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238C2F39'/%3E%3Cpath d='M19 7v13.5a3.5 3.5 0 1 1-2-3.2V7h7v4h-5z' fill='%23F7F3EA'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root {
+  --paper: #F7F3EA;
+  --card: #FFFDF8;
+  --ink: #1F2A44;
+  --muted: #646976;
+  --line: #DED6C4;
+  --accent: #8C2F39;
+  --accent-soft: #F3E3E3;
+  --on-accent: #FFFFFF;
+  --ok: #2F6B4F;
+  --warn-bg: #FBF0D9;
+  --warn-ink: #7A5410;
+  --shadow: 0 1px 2px rgba(31, 42, 68, .06), 0 4px 16px rgba(31, 42, 68, .06);
+  --serif: "Noto Serif KR", "Nanum Myeongjo", serif;
+  --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15181F;
+    --card: #1D212B;
+    --ink: #ECE6D8;
+    --muted: #A3A6AF;
+    --line: #333846;
+    --accent: #D4707A;
+    --accent-soft: #3A2328;
+    --on-accent: #15181F;
+    --ok: #79C29C;
+    --warn-bg: #3A3020;
+    --warn-ink: #F0CF8A;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 28px 16px calc(120px + env(safe-area-inset-bottom));
+}
+
+/* 머리: 오선 위의 제목 */
+.staff { display: block; width: 100%; height: 34px; color: var(--line); margin-bottom: 18px; }
+.eyebrow {
+  font-size: 13px; font-weight: 600; letter-spacing: .08em;
+  color: var(--accent); margin: 0 0 6px;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(26px, 7vw, 32px);
+  line-height: 1.25;
+  margin: 0 0 10px;
+  word-break: keep-all;
+}
+.lead { color: var(--muted); margin: 0 0 18px; word-break: keep-all; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  font-size: 14px; color: var(--muted);
+  padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+}
+.meta b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 곡 목록 */
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { font-weight: 700; font-size: 15px; margin-bottom: 10px; padding: 0; }
+.songs { display: grid; gap: 10px; }
+.song {
+  position: relative;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 64px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s, transform .08s;
+}
+.song:active { transform: scale(.99); }
+.song input { position: absolute; opacity: 0; pointer-events: none; }
+.mark {
+  flex: none;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  font-family: var(--serif); font-weight: 700; font-size: 17px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  color: var(--ink);
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.title { flex: 1; font-weight: 600; font-size: 17px; word-break: keep-all; overflow-wrap: anywhere; }
+.check {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--line);
+  display: grid; place-items: center;
+}
+.check svg { width: 14px; height: 14px; opacity: 0; color: var(--on-accent); }
+.song:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.song:has(input:checked) .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.song:has(input:checked) .check { background: var(--accent); border-color: var(--accent); }
+.song:has(input:checked) .check svg { opacity: 1; }
+.song:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.song.is-checked { border-color: var(--accent); background: var(--accent-soft); }
+.song.is-checked .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.song.is-checked .check { background: var(--accent); border-color: var(--accent); }
+.song.is-checked .check svg { opacity: 1; }
+
+/* 하단 고정 버튼 */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--paper) 70%, transparent);
+}
+.dock-inner { max-width: 520px; margin: 0 auto; }
+.btn {
+  appearance: none; border: 0; cursor: pointer;
+  width: 100%; min-height: 54px;
+  border-radius: 14px;
+  font: inherit; font-size: 17px; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+  transition: opacity .15s;
+}
+.btn:disabled { opacity: .38; cursor: not-allowed; }
+.btn.secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.hint { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+
+/* 상태 카드 */
+.panel {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+}
+.panel h2 { font-family: var(--serif); font-size: 21px; margin: 0 0 8px; word-break: keep-all; }
+.panel p { margin: 0 0 6px; color: var(--muted); word-break: keep-all; }
+.picked {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0 6px; padding: 14px 16px;
+  border-radius: 12px; background: var(--accent-soft);
+}
+.picked .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.picked .title { color: var(--ink); }
+.done-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--on-accent); margin-bottom: 14px;
+}
+.notice {
+  margin: 0 0 18px; padding: 12px 14px;
+  border-radius: 12px; background: var(--warn-bg); color: var(--warn-ink);
+  font-size: 14px; word-break: keep-all;
+}
+
+/* 결과 */
+.results { display: grid; gap: 14px; margin-top: 4px; }
+.r-row { display: grid; gap: 6px; }
+.r-head { display: flex; align-items: baseline; gap: 10px; }
+.r-head .mark { width: 28px; height: 28px; font-size: 14px; }
+.r-title { flex: 1; font-weight: 600; word-break: keep-all; overflow-wrap: anywhere; }
+.r-num { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.r-num small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.r-bar { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.r-bar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 6px; transition: width .8s cubic-bezier(.2,.7,.2,1); }
+.r-row.top .r-bar i { background: var(--accent); }
+.r-row.top .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.r-tag { font-size: 12px; font-weight: 700; color: var(--accent); }
+.r-mine { font-size: 12px; color: var(--muted); }
+.panel .footnote { font-size: 13px; color: var(--muted); margin: 20px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); word-break: keep-all; }
+.song:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.song:has(input:focus:not(:focus-visible)) { outline: none; }
+
+/* 확인 대화상자 */
+dialog {
+  border: 0; padding: 0; margin: auto auto 0;
+  width: 100%; max-width: 520px;
+  background: var(--card); color: var(--ink);
+  border-radius: 20px 20px 0 0;
+}
+dialog::backdrop { background: rgba(10, 12, 18, .45); }
+.sheet { padding: 24px 20px calc(20px + env(safe-area-inset-bottom)); }
+.sheet h2 { font-family: var(--serif); font-size: 20px; margin: 0 0 6px; }
+.sheet p { margin: 0 0 18px; color: var(--muted); word-break: keep-all; }
+.sheet .picked { margin: 0 0 18px; }
+.sheet .btns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+
+.loading { display: grid; gap: 10px; }
+.skel { height: 64px; border-radius: 14px; background: var(--line); opacity: .5; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+  .r-bar i, .song, .mark { transition: none; }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <svg class="staff" viewBox="0 0 320 34" preserveAspectRatio="none" aria-hidden="true">
+    <g stroke="currentColor" stroke-width="1"><line x1="0" y1="2" x2="320" y2="2"/><line x1="0" y1="9.5" x2="320" y2="9.5"/><line x1="0" y1="17" x2="320" y2="17"/><line x1="0" y1="24.5" x2="320" y2="24.5"/><line x1="0" y1="32" x2="320" y2="32"/></g>
+  </svg>
+  <p class="eyebrow">합창단 선호도 조사</p>
+  <h1 id="title">합창곡 선호도 조사</h1>
+  <p class="lead" id="desc"></p>
+  <div class="meta" id="meta" hidden></div>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <div id="view" aria-live="polite">
+    <div class="loading" aria-label="불러오는 중">
+      <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    </div>
+  </div>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="dock-inner">
+    <button class="btn" id="voteBtn" type="button" disabled>곡을 골라 주세요</button>
+    <p class="hint">투표는 기기당 한 번이며, 제출 후에는 바꿀 수 없습니다.</p>
+  </div>
+</div>
+
+<dialog id="confirm" aria-labelledby="cTitle">
+  <form method="dialog" class="sheet">
+    <h2 id="cTitle">이 곡으로 투표할까요?</h2>
+    <p>제출하면 이 기기에서는 다시 투표하거나 바꿀 수 없습니다.</p>
+    <div class="picked" id="cPicked"></div>
+    <div class="btns">
+      <button class="btn secondary" value="cancel" type="submit">다시 고르기</button>
+      <button class="btn" value="ok" type="submit" id="cOk">투표하기</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===== 설정 =====================================================
+  // publishable key는 공개되어도 되는 키입니다. secret key는 절대 넣지 마세요.
+  var SUPABASE_URL = "https://qejmxgompznvgnphjhre.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_qJRynq_MOW5ZhUywmiAW4w_L55HMyVQ";
+  var POLL_ID = (new URLSearchParams(location.search).get("p") || "main").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "main";
+
+  // ===== 화면 요소 ================================================
+  var $ = function (id) { return document.getElementById(id); };
+  var view = $("view"), dock = $("dock"), voteBtn = $("voteBtn"), notice = $("notice");
+  var dlg = $("confirm"), cPicked = $("cPicked"), cOk = $("cOk");
+  var CHECK_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+
+  var state = { poll: null, device: null, fp: null, selected: null, mine: null, busy: false, clockOffset: 0, timer: null };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function showNotice(msg) { notice.textContent = msg; notice.hidden = !msg; }
+
+  // ===== 저장소 (localStorage, 쿠키, IndexedDB 세 곳에 같은 ID) =====
+  var KEY = "choir_device_id";
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function cookieGet(k) {
+    try {
+      var m = document.cookie.match(new RegExp("(?:^|; )" + k + "=([^;]*)"));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch (e) { return null; }
+  }
+  function cookieSet(k, v) {
+    try { document.cookie = k + "=" + encodeURIComponent(v) + "; max-age=31536000; path=/; SameSite=Lax; Secure"; } catch (e) {}
+  }
+  function idb(mode, value) {
+    return new Promise(function (resolve) {
+      var done = false, finish = function (v) { if (!done) { done = true; resolve(v); } };
+      setTimeout(function () { finish(null); }, 1500);
+      try {
+        var req = indexedDB.open("choir_vote", 1);
+        req.onupgradeneeded = function () { req.result.createObjectStore("kv"); };
+        req.onerror = function () { finish(null); };
+        req.onsuccess = function () {
+          try {
+            var db = req.result, tx = db.transaction("kv", mode === "get" ? "readonly" : "readwrite"), st = tx.objectStore("kv");
+            if (mode === "get") {
+              var g = st.get(KEY);
+              g.onsuccess = function () { finish(g.result || null); };
+              g.onerror = function () { finish(null); };
+            } else {
+              st.put(value, KEY);
+              tx.oncomplete = function () { finish(true); };
+              tx.onerror = function () { finish(null); };
+            }
+          } catch (e) { finish(null); }
+        };
+      } catch (e) { finish(null); }
+    });
+  }
+  function newUuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    var b = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(b);
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    var h = Array.prototype.map.call(b, function (x) { return (x + 256).toString(16).slice(1); }).join("");
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+  }
+  async function getDeviceId() {
+    var cands = [lsGet(KEY), cookieGet(KEY), await idb("get")];
+    var id = null;
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i] && String(cands[i]).toLowerCase();
+      if (c && UUID_RE.test(c)) { id = c; break; }
+    }
+    if (!id) id = newUuid();
+    lsSet(KEY, id); cookieSet(KEY, id); idb("put", id);
+    return id;
+  }
+
+  // ===== 기기 지문 ================================================
+  // 시크릿 창이나 같은 폰의 다른 브라우저에서도 최대한 같은 값이 나오도록
+  // 기기 자체의 특성만 씁니다 (브라우저 종류, 언어, 캔버스 그림은 일부러 뺌).
+  function osFamily() {
+    var ua = navigator.userAgent || "";
+    var m;
+    if (/iPhone|iPod/.test(ua)) { m = ua.match(/OS (\d+)_/); return "ios-phone-" + (m ? m[1] : ""); }
+    if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) { m = ua.match(/OS (\d+)_/); return "ipad-" + (m ? m[1] : ""); }
+    if (/Android/.test(ua)) { m = ua.match(/Android (\d+)/); return "android-" + (m ? m[1] : ""); }
+    if (/Windows/.test(ua)) return "windows";
+    if (/Macintosh/.test(ua)) return "mac";
+    if (/CrOS/.test(ua)) return "chromeos";
+    if (/Linux/.test(ua)) return "linux";
+    return "other";
+  }
+  function glRenderer() {
+    try {
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      if (!gl) return "";
+      var ext = gl.getExtension("WEBGL_debug_renderer_info");
+      var r = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      return String(r || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    } catch (e) { return ""; }
+  }
+  function fallbackHash(str) {
+    // crypto.subtle을 못 쓰는 환경용: 시드가 다른 32비트 해시 8개를 이어 64자리 16진수로 만듦
+    var out = "";
+    for (var s = 0; s < 8; s++) {
+      var h = (2166136261 ^ (s * 16777619)) >>> 0;
+      for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+      out += ("00000000" + h.toString(16)).slice(-8);
+    }
+    return out;
+  }
+  async function getFingerprint() {
+    var w = screen.width || 0, h = screen.height || 0;
+    var parts = [
+      "v1",
+      osFamily(),
+      Math.min(w, h) + "x" + Math.max(w, h),
+      screen.colorDepth || 0,
+      Math.round((window.devicePixelRatio || 1) * 100),
+      (Intl.DateTimeFormat().resolvedOptions().timeZone || ""),
+      navigator.hardwareConcurrency || 0,
+      navigator.maxTouchPoints || 0,
+      glRenderer()
+    ].join("|");
+    try {
+      var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parts));
+      return Array.prototype.map.call(new Uint8Array(buf), function (x) { return (x + 256).toString(16).slice(1); }).join("");
+    } catch (e) {
+      return fallbackHash(parts);
+    }
+  }
+
+  // ===== 서버 호출 ================================================
+  async function rpc(fn, args) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 12000);
+    try {
+      var res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(args),
+        signal: ctrl ? ctrl.signal : undefined,
+        cache: "no-store"
+      });
+      if (!res.ok) {
+        var err = new Error("http_" + res.status);
+        err.status = res.status;
+        throw err;
+      }
+      return await res.json();
+    } finally { clearTimeout(t); }
+  }
+
+  // ===== 시간 표시 ================================================
+  function serverNow() { return Date.now() + state.clockOffset; }
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    var days = ["일", "월", "화", "수", "목", "금", "토"];
+    var hh = d.getHours(), mm = d.getMinutes();
+    return (d.getMonth() + 1) + "월 " + d.getDate() + "일(" + days[d.getDay()] + ") " +
+      (hh < 12 ? "오전 " : "오후 ") + ((hh % 12) || 12) + (mm ? ":" + String(mm).padStart(2, "0") : "시");
+  }
+  function fmtLeft(ms) {
+    if (ms <= 0) return "곧 마감";
+    var m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = m % 60;
+    if (d > 0) return d + "일 " + h + "시간 남음";
+    if (h > 0) return h + "시간 " + mi + "분 남음";
+    return Math.max(mi, 1) + "분 남음";
+  }
+  function renderMeta() {
+    var p = state.poll, meta = $("meta");
+    var html = "<span>참여 <b>" + Number(p.participants || 0) + "</b>명</span>";
+    if (p.closed) html += "<span><b>마감됨</b></span>";
+    else if (p.close_at) html += "<span>마감 <b>" + esc(fmtDate(p.close_at)) + "</b></span><span id=\"left\">" + esc(fmtLeft(new Date(p.close_at).getTime() - serverNow())) + "</span>";
+    else html += "<span>마감 <b>미정</b></span>";
+    if (!p.closed) html += "<span>결과는 마감 후 공개</span>";
+    meta.innerHTML = html;
+    meta.hidden = false;
+  }
+  function startClock() {
+    clearInterval(state.timer);
+    var p = state.poll;
+    if (!p || p.closed || !p.close_at) return;
+    var end = new Date(p.close_at).getTime();
+    state.timer = setInterval(function () {
+      var left = end - serverNow();
+      var el = $("left");
+      if (el) el.textContent = fmtLeft(left);
+      if (left <= 0) { clearInterval(state.timer); setTimeout(load, 1500); }
+    }, 20000);
+  }
+
+  // ===== 화면 그리기 ==============================================
+  function mark(i) { return '<span class="mark" aria-hidden="true">' + (i + 1) + "</span>"; }
+  function songTitle(i) { return (state.poll.songs || [])[i]; }
+
+  function renderBallot() {
+    var songs = state.poll.songs || [];
+    var html = '<fieldset><legend>가장 부르고 싶은 곡 하나를 골라 주세요</legend><div class="songs">';
+    songs.forEach(function (s, i) {
+      html += '<label class="song" data-i="' + i + '">' +
+        '<input type="radio" name="song" value="' + i + '"' + (state.selected === i ? " checked" : "") + ">" +
+        mark(i) + '<span class="title">' + esc(s) + "</span>" +
+        '<span class="check">' + CHECK_SVG + "</span></label>";
+    });
+    html += "</div></fieldset>";
+    view.innerHTML = html;
+    dock.hidden = false;
+    view.querySelectorAll('input[name="song"]').forEach(function (r) {
+      r.addEventListener("change", function () {
+        state.selected = Number(r.value);
+        syncChecked();
+      });
+    });
+    syncChecked();
+  }
+  function syncChecked() {
+    // :has()를 지원하지 않는 오래된 브라우저 대비
+    view.querySelectorAll(".song").forEach(function (el) {
+      el.classList.toggle("is-checked", Number(el.dataset.i) === state.selected);
+    });
+    var has = state.selected !== null;
+    voteBtn.disabled = !has || state.busy;
+    voteBtn.textContent = state.busy ? "제출하는 중..." : has ? (state.selected + 1) + "번 곡으로 투표하기" : "곡을 골라 주세요";
+  }
+
+  function renderVoted() {
+    dock.hidden = true;
+    var i = state.mine && typeof state.mine.song === "number" ? state.mine.song : null;
+    var p = state.poll;
+    var when = p.close_at ? fmtDate(p.close_at) + "에 마감되면" : "마감되면";
+    view.innerHTML =
+      '<section class="panel">' +
+        '<div class="done-icon">' + CHECK_SVG.replace('width="14"', "") + "</div>" +
+        "<h2>투표가 접수되었습니다</h2>" +
+        "<p>참여해 주셔서 감사합니다. " + esc(when) + " 이 페이지에서 결과를 볼 수 있습니다.</p>" +
+        (i !== null && songTitle(i) != null ? '<div class="picked">' + mark(i) + '<span class="title">' + esc(songTitle(i)) + "</span></div>" : "") +
+      "</section>";
+    var icon = view.querySelector(".done-icon svg");
+    if (icon) { icon.style.opacity = 1; icon.style.width = "22px"; icon.style.height = "22px"; }
+  }
+
+  function renderResults(r) {
+    dock.hidden = true;
+    var songs = state.poll.songs || [];
+    var counts = (r.counts || []).slice();
+    var total = Number(r.total || 0);
+    var max = counts.reduce(function (m, c) { return Math.max(m, c.votes); }, 0);
+    var mineIdx = state.mine && state.mine.voted ? state.mine.song : null;
+    var html = '<section class="panel"><h2>투표 결과</h2>' +
+      "<p>총 " + total + "표" + (total ? "" : ", 아직 표가 없습니다") + "</p>" +
+      '<div class="results">';
+    counts.forEach(function (c) {
+      var pct = total ? Math.round((c.votes / total) * 1000) / 10 : 0;
+      var top = max > 0 && c.votes === max;
+      html += '<div class="r-row' + (top ? " top" : "") + '">' +
+        '<div class="r-head">' + mark(c.song) +
+          '<span class="r-title">' + esc(songs[c.song]) +
+            (top ? ' <span class="r-tag">최다</span>' : "") +
+            (mineIdx === c.song ? ' <span class="r-mine">내 선택</span>' : "") +
+          "</span>" +
+          '<span class="r-num">' + c.votes + "표<small>" + pct + "%</small></span>" +
+        "</div>" +
+        '<div class="r-bar" role="img" aria-label="' + esc(songs[c.song]) + " " + c.votes + "표 " + pct + '퍼센트"><i data-w="' + (total ? (c.votes / total) * 100 : 0) + '"></i></div>' +
+      "</div>";
+    });
+    html += "</div>";
+    if (Number(r.flagged) > 0) {
+      html += '<p class="footnote">같은 기기에서 다시 투표한 것으로 의심되는 표 ' + Number(r.flagged) +
+        "표가 포함되어 있습니다. 같은 기종의 휴대폰을 쓰는 다른 단원일 수도 있어 제외하지 않았습니다.</p>";
+    }
+    html += "</section>";
+    view.innerHTML = html;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        view.querySelectorAll(".r-bar i").forEach(function (el) { el.style.width = el.dataset.w + "%"; });
+      });
+    });
+  }
+
+  function renderError(msg, retry) {
+    dock.hidden = true;
+    view.innerHTML = '<section class="panel"><h2>' + esc(msg) + "</h2>" +
+      "<p>인터넷 연결을 확인한 뒤 다시 시도해 주세요.</p>" +
+      (retry ? '<p style="margin-top:14px"><button class="btn secondary" type="button" id="retry">다시 시도</button></p>' : "") +
+      "</section>";
+    var b = $("retry");
+    if (b) b.addEventListener("click", load);
+  }
+
+  // ===== 흐름 =====================================================
+  async function load() {
+    showNotice("");
+    try {
+      if (!state.device) state.device = await getDeviceId();
+      if (!state.fp) state.fp = await getFingerprint();
+      var both = await Promise.all([
+        rpc("choir_poll_info", { p_poll: POLL_ID }),
+        rpc("choir_my_vote", { p_poll: POLL_ID, p_device: state.device })
+      ]);
+      var info = both[0];
+      state.mine = both[1] || { voted: false };
+      if (!info) {
+        $("meta").hidden = true;
+        dock.hidden = true;
+        view.innerHTML = '<section class="panel"><h2>투표를 찾을 수 없습니다</h2><p>받은 링크가 맞는지 운영진에게 확인해 주세요.</p></section>';
+        return;
+      }
+      state.poll = info;
+      if (info.server_now) state.clockOffset = new Date(info.server_now).getTime() - Date.now();
+      document.title = info.title;
+      $("title").textContent = info.title;
+      $("desc").textContent = info.description || "";
+      renderMeta();
+      startClock();
+
+      if (info.closed) {
+        var r = await rpc("choir_results", { p_poll: POLL_ID });
+        if (r && r.ok) renderResults(r);
+        else renderError("결과를 불러오지 못했습니다", true);
+      } else if (state.mine.voted) {
+        renderVoted();
+      } else {
+        renderBallot();
+      }
+    } catch (e) {
+      renderError("투표 정보를 불러오지 못했습니다", true);
+    }
+  }
+
+  voteBtn.addEventListener("click", function () {
+    if (state.selected === null || state.busy) return;
+    var i = state.selected;
+    cPicked.innerHTML = mark(i) + '<span class="title">' + esc(songTitle(i)) + "</span>";
+    if (typeof dlg.showModal === "function") {
+      dlg.returnValue = "";
+      dlg.showModal();
+      cOk.focus();
+    } else if (window.confirm((i + 1) + "번 곡 '" + songTitle(i) + "'에 투표할까요?\n제출 후에는 바꿀 수 없습니다.")) {
+      submit();
+    }
+  });
+  dlg.addEventListener("close", function () {
+    if (dlg.returnValue === "ok") submit();
+  });
+  // 바깥 영역을 누르면 닫기
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close("cancel"); });
+
+  async function submit() {
+    if (state.busy || state.selected === null) return;
+    state.busy = true; syncChecked(); showNotice("");
+    var chosen = state.selected;
+    try {
+      var r = await rpc("choir_cast_vote", { p_poll: POLL_ID, p_device: state.device, p_fp: state.fp, p_song: chosen });
+      state.busy = false;
+      if (r && r.ok) {
+        state.mine = { voted: true, song: chosen };
+        state.poll.participants = Number(state.poll.participants || 0) + 1;
+        renderMeta();
+        renderVoted();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      var reason = r && r.reason;
+      if (reason === "already_voted") { showNotice("이 기기에서는 이미 투표했습니다."); await load(); return; }
+      if (reason === "closed") { showNotice("투표가 마감되었습니다."); await load(); return; }
+      if (reason === "full") { showNotice("참여 인원 상한에 도달해 더 이상 투표할 수 없습니다. 운영진에게 알려 주세요."); syncChecked(); return; }
+      if (reason === "bad_song") { showNotice("곡 목록이 바뀌었습니다. 다시 골라 주세요."); state.selected = null; await load(); return; }
+      showNotice("투표를 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+      syncChecked();
+    } catch (e) {
+      state.busy = false;
+      // 전송은 됐는데 응답만 끊겼을 수 있으니 서버에서 다시 확인
+      try {
+        var m = await rpc("choir_my_vote", { p_poll: POLL_ID, p_device: state.device });
+        if (m && m.voted) { state.mine = m; renderVoted(); return; }
+      } catch (e2) {}
+      showNotice("연결이 불안정해 투표가 저장되지 않았습니다. 선택은 그대로 두었으니 다시 눌러 주세요.");
+      syncChecked();
+    }
+  }
+
+  // 다른 앱에 갔다가 돌아왔을 때 마감 여부를 새로 확인
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" && state.poll && !state.busy && !(dlg.open)) {
+      var p = state.poll;
+      if (!p.closed && p.close_at && new Date(p.close_at).getTime() <= serverNow()) load();
+    }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
