@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>합창곡 투표 편집</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F2A44'/%3E%3Cpath d='M19 7v13.5a3.5 3.5 0 1 1-2-3.2V7h7v4h-5z' fill='%23F7F3EA'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+/* 투표 페이지와 같은 악보 종이 톤, 편집용이라 입력칸이 주인공 */
+:root {
+  --paper: #F7F3EA;
+  --card: #FFFDF8;
+  --ink: #1F2A44;
+  --muted: #646976;
+  --line: #DED6C4;
+  --field: #FFFFFF;
+  --accent: #8C2F39;
+  --accent-soft: #F3E3E3;
+  --on-accent: #FFFFFF;
+  --ok: #2F6B4F;
+  --ok-soft: #E2EFE7;
+  --warn-bg: #FBF0D9;
+  --warn-ink: #7A5410;
+  --serif: "Noto Serif KR", "Nanum Myeongjo", serif;
+  --sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15181F;
+    --card: #1D212B;
+    --ink: #ECE6D8;
+    --muted: #A3A6AF;
+    --line: #333846;
+    --field: #15181F;
+    --accent: #D4707A;
+    --accent-soft: #3A2328;
+    --on-accent: #15181F;
+    --ok: #79C29C;
+    --ok-soft: #1F3329;
+    --warn-bg: #3A3020;
+    --warn-ink: #F0CF8A;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 16px; line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-block: 28px calc(110px + env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .08em; color: var(--accent); margin: 0 0 6px; }
+h1 { font-family: var(--serif); font-size: 26px; line-height: 1.25; margin: 0 0 8px; text-wrap: balance; word-break: keep-all; }
+.lead { color: var(--muted); margin: 0 0 18px; word-break: keep-all; }
+.status {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+  font-size: 14px; color: var(--muted);
+  padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 22px;
+}
+.status b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.status a { color: var(--accent); font-weight: 600; text-decoration: none; margin-left: auto; }
+.status a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.block { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 18px 16px; margin-bottom: 16px; }
+.block-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+.block-head h2 { font-family: var(--serif); font-size: 18px; margin: 0; flex: 1; }
+.tag { font-size: 12px; font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.field { display: grid; gap: 6px; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+label, .label { font-size: 13px; font-weight: 600; color: var(--muted); }
+input[type="text"], input[type="number"], textarea {
+  width: 100%; min-width: 0;
+  font: inherit; font-size: 16px; color: var(--ink);
+  background: var(--field); border: 1.5px solid var(--line); border-radius: 10px;
+  padding: 11px 12px;
+}
+textarea { resize: vertical; min-height: 64px; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+input.changed, textarea.changed { border-color: var(--warn-ink); }
+input.invalid, textarea.invalid { border-color: var(--accent); background: var(--accent-soft); }
+
+.song-row { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; margin-bottom: 8px; }
+.song-row:last-child { margin-bottom: 0; }
+.mark {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  font-family: var(--serif); font-weight: 700; font-size: 16px;
+  border: 1.5px solid var(--ink); border-radius: 4px;
+}
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper input { width: 84px; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper button {
+  width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--field); color: var(--ink); font: inherit; font-size: 20px; cursor: pointer;
+}
+.stepper button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.help { font-size: 13px; color: var(--muted); margin: 6px 0 0; word-break: keep-all; }
+
+.notice { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; background: var(--warn-bg); color: var(--warn-ink); font-size: 14px; word-break: keep-all; }
+.notice.ok { background: var(--ok-soft); color: var(--ok); }
+
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(to top, var(--paper) 70%, transparent);
+}
+.dock-inner { max-width: 560px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+.dirty { flex: 1; font-size: 13px; color: var(--muted); }
+.btn {
+  appearance: none; border: 0; cursor: pointer;
+  min-height: 50px; padding: 0 22px; border-radius: 14px;
+  font: inherit; font-size: 16px; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+.gate { display: grid; gap: 10px; }
+.gate .btn { width: 100%; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="eyebrow">관리자 전용</p>
+  <h1>합창곡 투표 편집</h1>
+  <p class="lead">주제 이름과 곡 제목, 공개 인원을 고치고 저장하면 투표 페이지에 바로 반영됩니다.</p>
+
+  <div id="notice" class="notice" role="status" hidden></div>
+
+  <section id="gate" class="block" hidden>
+    <form class="gate" id="gateForm">
+      <label for="code">관리 코드</label>
+      <input type="text" id="code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="관리 코드를 입력하세요">
+      <button class="btn" type="submit">열기</button>
+    </form>
+  </section>
+
+  <form id="editor" hidden novalidate>
+    <div class="status" id="status"></div>
+    <div id="lockNote" class="notice" hidden></div>
+
+    <section class="block">
+      <div class="block-head"><h2>투표 페이지</h2></div>
+      <div class="field">
+        <label for="f-title">제목</label>
+        <input type="text" id="f-title" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="f-desc">안내문</label>
+        <textarea id="f-desc" maxlength="300" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <span class="label" id="exp-label">결과 공개 인원</span>
+        <div class="stepper" role="group" aria-labelledby="exp-label">
+          <button type="button" id="expMinus" aria-label="한 명 줄이기">-</button>
+          <input type="number" id="f-expected" min="1" max="1000" step="1" inputmode="numeric" aria-labelledby="exp-label">
+          <button type="button" id="expPlus" aria-label="한 명 늘리기">+</button>
+          <span>명</span>
+        </div>
+        <p class="help">두 주제를 모두 투표한 사람이 이 인원이 되면 투표가 닫히고 주제별 1위 곡만 공개됩니다.</p>
+      </div>
+    </section>
+
+    <div id="topics"></div>
+  </form>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="dock-inner">
+    <span class="dirty" id="dirty">바뀐 내용 없음</span>
+    <button class="btn" type="button" id="saveBtn" disabled>저장</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SUPABASE_URL = "https://vlaiziklxvpykzsuvinn.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_IZ5eqaUkNri2D1vKDud40g_XU_n6RsU";
+  var GROUP_ID = "main";
+  var CODE_KEY = "choir_admin_code";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { code: null, data: null, busy: false };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function notice(msg, ok) {
+    var n = $("notice");
+    n.textContent = msg || "";
+    n.hidden = !msg;
+    n.classList.toggle("ok", !!ok);
+  }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  async function rpc(fn, args) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 15000);
+    try {
+      var res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(args), signal: ctrl ? ctrl.signal : undefined, cache: "no-store"
+      });
+      if (!res.ok) throw new Error("http_" + res.status);
+      return await res.json();
+    } finally { clearTimeout(t); }
+  }
+
+  // ===== 화면 =====
+  function render(d) {
+    state.data = d;
+    $("gate").hidden = true;
+    $("editor").hidden = false;
+    $("dock").hidden = false;
+    var done = Math.min(d.completed, d.expected);
+    $("status").innerHTML =
+      "<span>투표 완료 <b>" + Number(d.completed) + " / " + Number(d.expected) + "</b>명</span>" +
+      "<span>" + (d.completed >= d.expected ? "<b>결과 공개됨</b>" : "결과 비공개") + "</span>" +
+      '<a href="./" target="_blank" rel="noopener">투표 페이지 열기</a>';
+    $("f-title").value = d.title;
+    $("f-desc").value = d.description || "";
+    $("f-expected").value = d.expected;
+
+    var html = "";
+    var anyVotes = 0;
+    d.topics.forEach(function (t, ti) {
+      anyVotes += Number(t.votes || 0);
+      html += '<section class="block" data-topic="' + esc(t.id) + '">' +
+        '<div class="block-head"><span class="tag">주제 ' + (ti + 1) + "</span><h2>" + esc(t.title) + "</h2>" +
+        '<span class="count">' + Number(t.votes || 0) + "표</span></div>" +
+        '<div class="field"><label for="t' + ti + '-title">주제 이름</label>' +
+        '<input type="text" id="t' + ti + '-title" data-role="ttitle" maxlength="60" value="' + esc(t.title) + '"></div>' +
+        '<span class="label">곡 제목</span><div style="display:grid;gap:8px;margin-top:6px">';
+      t.songs.forEach(function (s, si) {
+        html += '<div class="song-row"><span class="mark" aria-hidden="true">' + (si + 1) + "</span>" +
+          '<input type="text" id="t' + ti + "-s" + si + '" data-role="song" maxlength="80" aria-label="주제 ' + (ti + 1) + " " + (si + 1) + '번 곡" value="' + esc(s) + '"></div>';
+      });
+      html += "</div></section>";
+    });
+    $("topics").innerHTML = html;
+    var lock = $("lockNote");
+    if (anyVotes > 0) {
+      lock.textContent = "이미 표가 " + anyVotes + "개 들어와 있습니다. 표는 곡 번호로 저장되므로 오타 수정은 괜찮지만, 곡을 다른 곡으로 바꾸거나 순서를 바꾸면 기존 표가 바뀐 곡으로 집계됩니다.";
+      lock.hidden = false;
+    } else {
+      lock.hidden = true;
+    }
+    markDirty();
+  }
+
+  function collect() {
+    var out = {
+      title: $("f-title").value.trim(),
+      description: $("f-desc").value.trim(),
+      expected: Number($("f-expected").value),
+      topics: []
+    };
+    document.querySelectorAll("#topics [data-topic]").forEach(function (sec) {
+      var songs = [];
+      sec.querySelectorAll('[data-role="song"]').forEach(function (i) { songs.push(i.value.trim()); });
+      out.topics.push({ id: sec.dataset.topic, title: sec.querySelector('[data-role="ttitle"]').value.trim(), songs: songs });
+    });
+    return out;
+  }
+
+  function validate() {
+    var bad = 0;
+    function check(el, ok) { el.classList.toggle("invalid", !ok); if (!ok) bad++; }
+    check($("f-title"), $("f-title").value.trim().length > 0);
+    var e = Number($("f-expected").value);
+    check($("f-expected"), Number.isInteger(e) && e >= 1 && e <= 1000);
+    document.querySelectorAll('#topics input[type="text"]').forEach(function (i) { check(i, i.value.trim().length > 0); });
+    return bad;
+  }
+
+  function markDirty() {
+    if (!state.data) return;
+    var d = state.data, n = 0;
+    function cmp(el, orig) { var ch = el.value.trim() !== String(orig == null ? "" : orig).trim(); el.classList.toggle("changed", ch); if (ch) n++; }
+    cmp($("f-title"), d.title);
+    cmp($("f-desc"), d.description);
+    cmp($("f-expected"), d.expected);
+    d.topics.forEach(function (t, ti) {
+      var tt = $("t" + ti + "-title"); if (tt) cmp(tt, t.title);
+      t.songs.forEach(function (s, si) { var el = $("t" + ti + "-s" + si); if (el) cmp(el, s); });
+    });
+    var bad = validate();
+    $("dirty").textContent = bad ? "빈 칸 " + bad + "개를 채워 주세요" : n ? "바뀐 칸 " + n + "개, 아직 저장 안 됨" : "바뀐 내용 없음";
+    $("saveBtn").disabled = state.busy || n === 0 || bad > 0;
+    $("saveBtn").textContent = state.busy ? "저장하는 중..." : "저장";
+  }
+
+  var REASONS = {
+    bad_code: "관리 코드가 맞지 않습니다.",
+    bad_title: "제목을 1자 이상 60자 이하로 입력해 주세요.",
+    bad_description: "안내문은 300자 이하로 입력해 주세요.",
+    bad_expected: "공개 인원은 1명 이상 1000명 이하의 정수로 입력해 주세요.",
+    bad_topic_title: "주제 이름을 1자 이상 60자 이하로 입력해 주세요.",
+    bad_song_title: "곡 제목을 1자 이상 80자 이하로 입력해 주세요.",
+    songs_locked: "표가 들어온 주제는 곡 개수를 바꿀 수 없습니다."
+  };
+
+  async function save() {
+    if (state.busy || validate()) return;
+    state.busy = true; markDirty(); notice("");
+    try {
+      var r = await rpc("choir_admin_save", { p_group: GROUP_ID, p_code: state.code, p_data: collect() });
+      state.busy = false;
+      if (r && r.ok) { render(r); notice("저장했습니다. 투표 페이지에 바로 반영됩니다.", true); return; }
+      if (r && r.reason === "bad_code") { lsDel(CODE_KEY); }
+      notice(REASONS[r && r.reason] || "저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+      markDirty();
+    } catch (e) {
+      state.busy = false;
+      notice("연결이 불안정해 저장하지 못했습니다. 입력한 내용은 그대로 있으니 다시 눌러 주세요.");
+      markDirty();
+    }
+  }
+
+  async function open(code) {
+    notice("");
+    try {
+      var r = await rpc("choir_admin_load", { p_group: GROUP_ID, p_code: code });
+      if (r && r.ok) { state.code = code; lsSet(CODE_KEY, code); render(r); return true; }
+      lsDel(CODE_KEY);
+      showGate("관리 코드가 맞지 않습니다.");
+    } catch (e) {
+      showGate("불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
+    }
+    return false;
+  }
+  function showGate(msg) {
+    $("gate").hidden = false; $("editor").hidden = true; $("dock").hidden = true;
+    if (msg) notice(msg);
+  }
+
+  $("gateForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = $("code").value.trim();
+    if (c) open(c);
+  });
+  $("editor").addEventListener("input", markDirty);
+  $("editor").addEventListener("submit", function (e) { e.preventDefault(); save(); });
+  $("saveBtn").addEventListener("click", save);
+  $("expMinus").addEventListener("click", function () { var i = $("f-expected"); i.value = Math.max(1, (Number(i.value) || 1) - 1); markDirty(); });
+  $("expPlus").addEventListener("click", function () { var i = $("f-expected"); i.value = Math.min(1000, (Number(i.value) || 0) + 1); markDirty(); });
+  window.addEventListener("beforeunload", function (e) {
+    if (!$("saveBtn").disabled) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  // 링크의 # 뒤 코드는 한 번 읽고 주소창에서 지움 (화면 공유나 기록에 남지 않게)
+  function takeHash() {
+    var h = "";
+    try { h = decodeURIComponent((location.hash || "").replace(/^#/, "")).trim(); } catch (e) {}
+    if (h) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+    return h;
+  }
+  window.addEventListener("hashchange", function () { var h = takeHash(); if (h) open(h); });
+  var code = takeHash() || lsGet(CODE_KEY);
+  if (code) open(code); else showGate();
+})();
+</script>
+</body>
+</html>
