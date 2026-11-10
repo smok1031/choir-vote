@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>합창곡 선호도 조사</title>
-<meta name="description" content="다섯 곡 중 가장 부르고 싶은 곡 하나를 골라 주세요.">
+<meta name="description" content="주제마다 가장 부르고 싶은 곡을 하나씩 골라 주세요. 모두 투표하면 1위 곡이 공개됩니다.">
 <meta property="og:title" content="합창곡 선호도 조사">
-<meta property="og:description" content="다섯 곡 중 가장 부르고 싶은 곡 하나를 골라 주세요. 한 기기에서 한 번만 투표할 수 있습니다.">
+<meta property="og:description" content="주제마다 가장 부르고 싶은 곡을 하나씩 골라 주세요. 모두 투표하면 1위 곡이 공개됩니다.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F3EA" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15181F" media="(prefers-color-scheme: dark)">
@@ -221,7 +221,43 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   .r-bar i, .song, .mark { transition: none; }
 }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 [hidden] { display: none !important; }
+
+/* 주제 구역 */
+.topic { margin: 0 0 30px; scroll-margin-top: 16px; }
+.topic-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+.topic-no {
+  flex: none; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  color: var(--accent); border: 1.5px solid var(--accent); border-radius: 999px;
+  padding: 1px 9px; transform: translateY(-2px);
+}
+.topic-title { font-family: var(--serif); font-size: 20px; font-weight: 700; margin: 0; flex: 1; word-break: keep-all; overflow-wrap: anywhere; }
+.topic-state { flex: none; font-size: 13px; color: var(--muted); }
+.topic-state.ok { color: var(--ok); font-weight: 600; }
+.topic.missing .topic-state { color: var(--accent); font-weight: 600; }
+.topic-done {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border-radius: 14px; background: var(--card); border: 1.5px dashed var(--line);
+}
+.topic-done .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.topic-done small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+.sheet .picks { display: grid; gap: 8px; margin: 0 0 18px; }
+.sheet .picks .picked { margin: 0; }
+.picked .lbl { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+.panel + .panel { margin-top: 16px; }
+.panel > p + .results-topic { margin-top: 18px; }
+.results-topic + .results-topic { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
+.winner {
+  display: flex; align-items: center; gap: 12px; padding: 16px;
+  border-radius: 14px; background: var(--accent-soft); border: 1.5px solid var(--accent);
+}
+.winner + .winner { margin-top: 8px; }
+.winner .mark { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.winner .title { font-size: 18px; }
+.crown { flex: none; font-size: 13px; font-weight: 700; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 3px 10px; }
+.results-topic h3 { font-family: var(--serif); font-size: 18px; margin: 0 0 4px; word-break: keep-all; }
+.results-topic .sub { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
 </style>
 </head>
 <body>
@@ -244,15 +280,15 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
 <div class="dock" id="dock" hidden>
   <div class="dock-inner">
     <button class="btn" id="voteBtn" type="button" disabled>곡을 골라 주세요</button>
-    <p class="hint">투표는 기기당 한 번이며, 제출 후에는 바꿀 수 없습니다.</p>
+    <p class="hint">주제마다 한 곡씩, 기기당 한 번만 투표할 수 있고 제출 후에는 바꿀 수 없습니다.</p>
   </div>
 </div>
 
 <dialog id="confirm" aria-labelledby="cTitle">
   <form method="dialog" class="sheet">
-    <h2 id="cTitle">이 곡으로 투표할까요?</h2>
+    <h2 id="cTitle">이대로 투표할까요?</h2>
     <p>제출하면 이 기기에서는 다시 투표하거나 바꿀 수 없습니다.</p>
-    <div class="picked" id="cPicked"></div>
+    <div class="picks" id="cPicked"></div>
     <div class="btns">
       <button class="btn secondary" value="cancel" type="submit">다시 고르기</button>
       <button class="btn" value="ok" type="submit" id="cOk">투표하기</button>
@@ -268,7 +304,7 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   // publishable key는 공개되어도 되는 키입니다. secret key는 절대 넣지 마세요.
   var SUPABASE_URL = "https://vlaiziklxvpykzsuvinn.supabase.co";
   var SUPABASE_KEY = "sb_publishable_IZ5eqaUkNri2D1vKDud40g_XU_n6RsU";
-  var POLL_ID = (new URLSearchParams(location.search).get("p") || "main").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "main";
+  var GROUP_ID = (new URLSearchParams(location.search).get("g") || "main").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "main";
 
   // ===== 화면 요소 ================================================
   var $ = function (id) { return document.getElementById(id); };
@@ -276,7 +312,8 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   var dlg = $("confirm"), cPicked = $("cPicked"), cOk = $("cOk");
   var CHECK_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
 
-  var state = { poll: null, device: null, fp: null, selected: null, mine: null, busy: false, clockOffset: 0, timer: null };
+  // selected: { topicId: songIndex }
+  var state = { group: null, device: null, fp: null, selected: {}, busy: false, timer: null };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -371,7 +408,6 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
     } catch (e) { return ""; }
   }
   function fallbackHash(str) {
-    // crypto.subtle을 못 쓰는 환경용: 시드가 다른 32비트 해시 8개를 이어 64자리 16진수로 만듦
     var out = "";
     for (var s = 0; s < 8; s++) {
       var h = (2166136261 ^ (s * 16777619)) >>> 0;
@@ -423,130 +459,137 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   }
 
   // ===== 시간 표시 ================================================
-  function serverNow() { return Date.now() + state.clockOffset; }
-  function fmtDate(iso) {
-    var d = new Date(iso);
-    var days = ["일", "월", "화", "수", "목", "금", "토"];
-    var hh = d.getHours(), mm = d.getMinutes();
-    return (d.getMonth() + 1) + "월 " + d.getDate() + "일(" + days[d.getDay()] + ") " +
-      (hh < 12 ? "오전 " : "오후 ") + ((hh % 12) || 12) + (mm ? ":" + String(mm).padStart(2, "0") : "시");
-  }
-  function fmtLeft(ms) {
-    if (ms <= 0) return "곧 마감";
-    var m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mi = m % 60;
-    if (d > 0) return d + "일 " + h + "시간 남음";
-    if (h > 0) return h + "시간 " + mi + "분 남음";
-    return Math.max(mi, 1) + "분 남음";
-  }
   function renderMeta() {
-    var p = state.poll, meta = $("meta");
-    var html = "<span>참여 <b>" + Number(p.participants || 0) + "</b>명</span>";
-    if (p.closed) html += "<span><b>마감됨</b></span>";
-    else if (p.close_at) html += "<span>마감 <b>" + esc(fmtDate(p.close_at)) + "</b></span><span id=\"left\">" + esc(fmtLeft(new Date(p.close_at).getTime() - serverNow())) + "</span>";
-    else html += "<span>마감 <b>미정</b></span>";
-    if (!p.closed) html += "<span>결과는 마감 후 공개</span>";
+    var g = state.group, meta = $("meta");
+    var html = "<span>참여 <b>" + Number(g.completed || 0) + " / " + Number(g.expected || 0) + "</b>명 완료</span>";
+    html += g.closed ? "<span><b>투표 종료</b></span>" : "<span>" + Number(g.expected || 0) + "명이 모두 투표하면 주제별 1위 곡 공개</span>";
     meta.innerHTML = html;
     meta.hidden = false;
   }
-  function startClock() {
+  // 투표를 마친 화면은 30초마다 확인해서, 인원이 다 차면 결과로 바꿈
+  function startPolling() {
     clearInterval(state.timer);
-    var p = state.poll;
-    if (!p || p.closed || !p.close_at) return;
-    var end = new Date(p.close_at).getTime();
+    var g = state.group;
+    if (!g || g.closed || openTopics().length > 0) return;
     state.timer = setInterval(function () {
-      var left = end - serverNow();
-      var el = $("left");
-      if (el) el.textContent = fmtLeft(left);
-      if (left <= 0) { clearInterval(state.timer); setTimeout(load, 1500); }
-    }, 20000);
+      if (document.visibilityState === "visible" && !state.busy) load(true);
+    }, 30000);
   }
 
   // ===== 화면 그리기 ==============================================
   function mark(i) { return '<span class="mark" aria-hidden="true">' + (i + 1) + "</span>"; }
-  function songTitle(i) { return (state.poll.songs || [])[i]; }
+  function topics() { return (state.group && state.group.topics) || []; }
+  function hasMine(t) { return typeof t.mine === "number"; }
+  function openTopics() { return topics().filter(function (t) { return !hasMine(t); }); }
 
   function renderBallot() {
-    var songs = state.poll.songs || [];
-    var html = '<fieldset><legend>가장 부르고 싶은 곡 하나를 골라 주세요</legend><div class="songs">';
-    songs.forEach(function (s, i) {
-      html += '<label class="song" data-i="' + i + '">' +
-        '<input type="radio" name="song" value="' + i + '"' + (state.selected === i ? " checked" : "") + ">" +
-        mark(i) + '<span class="title">' + esc(s) + "</span>" +
-        '<span class="check">' + CHECK_SVG + "</span></label>";
+    var html = "";
+    topics().forEach(function (t, ti) {
+      html += '<section class="topic" id="topic-' + ti + '" data-topic="' + esc(t.id) + '" aria-labelledby="th-' + ti + '">' +
+        '<div class="topic-head"><span class="topic-no">주제 ' + (ti + 1) + '</span>' +
+        '<h2 class="topic-title" id="th-' + ti + '">' + esc(t.title) + "</h2>" +
+        '<span class="topic-state"></span></div>';
+      if (hasMine(t)) {
+        html += '<div class="topic-done">' + mark(t.mine) +
+          '<span class="title">' + esc((t.songs || [])[t.mine]) + "<small>이미 투표한 주제입니다</small></span></div>";
+      } else {
+        html += '<fieldset><legend class="sr">' + esc(t.title) + ": 한 곡을 골라 주세요</legend><div class=\"songs\">";
+        (t.songs || []).forEach(function (s, i) {
+          var name = "song-" + ti;
+          html += '<label class="song" data-i="' + i + '">' +
+            '<input type="radio" name="' + name + '" value="' + i + '"' + (state.selected[t.id] === i ? " checked" : "") + ">" +
+            mark(i) + '<span class="title">' + esc(s) + "</span>" +
+            '<span class="check">' + CHECK_SVG + "</span></label>";
+        });
+        html += "</div></fieldset>";
+      }
+      html += "</section>";
     });
-    html += "</div></fieldset>";
     view.innerHTML = html;
     dock.hidden = false;
-    view.querySelectorAll('input[name="song"]').forEach(function (r) {
-      r.addEventListener("change", function () {
-        state.selected = Number(r.value);
-        syncChecked();
+    view.querySelectorAll(".topic").forEach(function (sec) {
+      var tid = sec.dataset.topic;
+      sec.querySelectorAll('input[type="radio"]').forEach(function (r) {
+        r.addEventListener("change", function () {
+          state.selected[tid] = Number(r.value);
+          sec.classList.remove("missing");
+          syncChecked();
+        });
       });
     });
     syncChecked();
   }
+
   function syncChecked() {
-    // :has()를 지원하지 않는 오래된 브라우저 대비
-    view.querySelectorAll(".song").forEach(function (el) {
-      el.classList.toggle("is-checked", Number(el.dataset.i) === state.selected);
+    view.querySelectorAll(".topic").forEach(function (sec) {
+      var tid = sec.dataset.topic;
+      var t = topics().filter(function (x) { return x.id === tid; })[0];
+      var stEl = sec.querySelector(".topic-state");
+      sec.querySelectorAll(".song").forEach(function (el) {
+        el.classList.toggle("is-checked", Number(el.dataset.i) === state.selected[tid]);
+      });
+      if (!stEl || !t) return;
+      if (hasMine(t)) { stEl.textContent = "투표 완료"; stEl.className = "topic-state ok"; }
+      else if (typeof state.selected[tid] === "number") { stEl.textContent = (state.selected[tid] + 1) + "번 선택"; stEl.className = "topic-state ok"; }
+      else { stEl.textContent = "미선택"; stEl.className = "topic-state"; }
     });
-    var has = state.selected !== null;
-    voteBtn.disabled = !has || state.busy;
-    voteBtn.textContent = state.busy ? "제출하는 중..." : has ? (state.selected + 1) + "번 곡으로 투표하기" : "곡을 골라 주세요";
+    var open = openTopics();
+    var picked = open.filter(function (t) { return typeof state.selected[t.id] === "number"; }).length;
+    var all = open.length > 0 && picked === open.length;
+    voteBtn.disabled = state.busy || picked === 0;
+    voteBtn.dataset.ready = all ? "1" : "0";
+    if (state.busy) voteBtn.textContent = "제출하는 중...";
+    else if (all) voteBtn.textContent = "투표하기";
+    else if (picked === 0) voteBtn.textContent = open.length > 1 ? "주제마다 한 곡씩 골라 주세요" : "곡을 골라 주세요";
+    else voteBtn.textContent = (open.length - picked) + "개 주제가 남았습니다 (" + picked + "/" + open.length + ")";
   }
 
   function renderVoted() {
     dock.hidden = true;
-    var i = state.mine && typeof state.mine.song === "number" ? state.mine.song : null;
-    var p = state.poll;
-    var when = p.close_at ? fmtDate(p.close_at) + "에 마감되면" : "마감되면";
-    view.innerHTML =
-      '<section class="panel">' +
-        '<div class="done-icon">' + CHECK_SVG.replace('width="14"', "") + "</div>" +
-        "<h2>투표가 접수되었습니다</h2>" +
-        "<p>참여해 주셔서 감사합니다. " + esc(when) + " 이 페이지에서 결과를 볼 수 있습니다.</p>" +
-        (i !== null && songTitle(i) != null ? '<div class="picked">' + mark(i) + '<span class="title">' + esc(songTitle(i)) + "</span></div>" : "") +
-      "</section>";
+    var g = state.group;
+    var left = Math.max(0, Number(g.expected || 0) - Number(g.completed || 0));
+    var html = '<section class="panel">' +
+      '<div class="done-icon">' + CHECK_SVG + "</div>" +
+      "<h2>투표가 접수되었습니다</h2>" +
+      "<p>참여해 주셔서 감사합니다. " + (left > 0 ? "아직 " + left + "명이 남았습니다. " : "") +
+      "모두 투표하면 이 페이지에서 주제별 1위 곡이 공개됩니다. 열어 두시면 자동으로 바뀝니다.</p>";
+    topics().forEach(function (t) {
+      if (!hasMine(t)) return;
+      html += '<div class="picked">' + mark(t.mine) + '<span class="title"><span class="lbl">' + esc(t.title) + "</span>" +
+        esc((t.songs || [])[t.mine]) + "</span></div>";
+    });
+    html += "</section>";
+    view.innerHTML = html;
     var icon = view.querySelector(".done-icon svg");
-    if (icon) { icon.style.opacity = 1; icon.style.width = "22px"; icon.style.height = "22px"; }
+    if (icon) { icon.style.width = "22px"; icon.style.height = "22px"; }
   }
 
-  function renderResults(r) {
+  function renderResults() {
     dock.hidden = true;
-    var songs = state.poll.songs || [];
-    var counts = (r.counts || []).slice();
-    var total = Number(r.total || 0);
-    var max = counts.reduce(function (m, c) { return Math.max(m, c.votes); }, 0);
-    var mineIdx = state.mine && state.mine.voted ? state.mine.song : null;
-    var html = '<section class="panel"><h2>투표 결과</h2>' +
-      "<p>총 " + total + "표" + (total ? "" : ", 아직 표가 없습니다") + "</p>" +
-      '<div class="results">';
-    counts.forEach(function (c) {
-      var pct = total ? Math.round((c.votes / total) * 1000) / 10 : 0;
-      var top = max > 0 && c.votes === max;
-      html += '<div class="r-row' + (top ? " top" : "") + '">' +
-        '<div class="r-head">' + mark(c.song) +
-          '<span class="r-title">' + esc(songs[c.song]) +
-            (top ? ' <span class="r-tag">최다</span>' : "") +
-            (mineIdx === c.song ? ' <span class="r-mine">내 선택</span>' : "") +
-          "</span>" +
-          '<span class="r-num">' + c.votes + "표<small>" + pct + "%</small></span>" +
-        "</div>" +
-        '<div class="r-bar" role="img" aria-label="' + esc(songs[c.song]) + " " + c.votes + "표 " + pct + '퍼센트"><i data-w="' + (total ? (c.votes / total) * 100 : 0) + '"></i></div>' +
-      "</div>";
+    var g = state.group;
+    var html = '<section class="panel"><h2>투표 결과</h2><p>' + Number(g.expected || 0) + "명이 모두 투표했습니다. 주제별 1위 곡입니다.</p>";
+    topics().forEach(function (t) {
+      var w = t.winners || [];
+      var songs = t.songs || [];
+      html += '<div class="results-topic"><h3>' + esc(t.title) + "</h3>";
+      if (!w.length) {
+        html += '<p class="sub">표가 없습니다</p>';
+      } else {
+        if (w.length > 1) html += '<p class="sub">공동 1위 ' + w.length + "곡</p>";
+        w.forEach(function (i) {
+          html += '<div class="winner">' + mark(i) + '<span class="title">' + esc(songs[i]) +
+            (t.mine === i ? ' <span class="r-mine">내 선택</span>' : "") + "</span>" +
+            '<span class="crown">1위</span></div>';
+        });
+      }
+      html += "</div>";
     });
-    html += "</div>";
-    if (Number(r.flagged) > 0) {
-      html += '<p class="footnote">같은 기기에서 다시 투표한 것으로 의심되는 표 ' + Number(r.flagged) +
+    if (Number(g.flagged) > 0) {
+      html += '<p class="footnote">같은 기기에서 다시 투표한 것으로 의심되는 표 ' + Number(g.flagged) +
         "표가 포함되어 있습니다. 같은 기종의 휴대폰을 쓰는 다른 단원일 수도 있어 제외하지 않았습니다.</p>";
     }
     html += "</section>";
     view.innerHTML = html;
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        view.querySelectorAll(".r-bar i").forEach(function (el) { el.style.width = el.dataset.w + "%"; });
-      });
-    });
   }
 
   function renderError(msg, retry) {
@@ -560,103 +603,120 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
   }
 
   // ===== 흐름 =====================================================
-  async function load() {
-    showNotice("");
+  async function load(silent) {
     try {
       if (!state.device) state.device = await getDeviceId();
       if (!state.fp) state.fp = await getFingerprint();
-      var both = await Promise.all([
-        rpc("choir_poll_info", { p_poll: POLL_ID }),
-        rpc("choir_my_vote", { p_poll: POLL_ID, p_device: state.device })
-      ]);
-      var info = both[0];
-      state.mine = both[1] || { voted: false };
-      if (!info) {
+      var g = await rpc("choir_group", { p_group: GROUP_ID, p_device: state.device });
+      if (!g || !g.topics || !g.topics.length) {
         $("meta").hidden = true;
         dock.hidden = true;
         view.innerHTML = '<section class="panel"><h2>투표를 찾을 수 없습니다</h2><p>받은 링크가 맞는지 운영진에게 확인해 주세요.</p></section>';
         return;
       }
-      state.poll = info;
-      if (info.server_now) state.clockOffset = new Date(info.server_now).getTime() - Date.now();
-      document.title = info.title;
-      $("title").textContent = info.title;
-      $("desc").textContent = info.description || "";
+      state.group = g;
+      // 서버에서 사라진 주제나 곡 범위를 벗어난 선택은 버림
+      var keep = {};
+      g.topics.forEach(function (t) {
+        var s = state.selected[t.id];
+        if (!hasMine(t) && typeof s === "number" && s < (t.songs || []).length) keep[t.id] = s;
+      });
+      state.selected = keep;
+      document.title = g.title;
+      $("title").textContent = g.title;
+      $("desc").textContent = g.description || "";
       renderMeta();
-      startClock();
 
-      if (info.closed) {
-        var r = await rpc("choir_results", { p_poll: POLL_ID });
-        if (r && r.ok) renderResults(r);
-        else renderError("결과를 불러오지 못했습니다", true);
-      } else if (state.mine.voted) {
-        renderVoted();
-      } else {
-        renderBallot();
-      }
+      if (g.closed) renderResults();
+      else if (openTopics().length === 0) renderVoted();
+      else if (!silent) renderBallot();
+      startPolling();
     } catch (e) {
+      if (silent) return;
       renderError("투표 정보를 불러오지 못했습니다", true);
     }
   }
 
   voteBtn.addEventListener("click", function () {
-    if (state.selected === null || state.busy) return;
-    var i = state.selected;
-    cPicked.innerHTML = mark(i) + '<span class="title">' + esc(songTitle(i)) + "</span>";
+    if (state.busy) return;
+    var open = openTopics();
+    var missing = open.filter(function (t) { return typeof state.selected[t.id] !== "number"; });
+    if (missing.length) {
+      // 아직 고르지 않은 주제로 이동해서 알려줌
+      var idx = topics().indexOf(missing[0]);
+      var sec = $("topic-" + idx);
+      if (sec) {
+        sec.classList.add("missing");
+        sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
+    var html = "";
+    open.forEach(function (t) {
+      var i = state.selected[t.id];
+      html += '<div class="picked">' + mark(i) + '<span class="title"><span class="lbl">' + esc(t.title) + "</span>" + esc(t.songs[i]) + "</span></div>";
+    });
+    cPicked.innerHTML = html;
     if (typeof dlg.showModal === "function") {
       dlg.returnValue = "";
       dlg.showModal();
       cOk.focus();
-    } else if (window.confirm((i + 1) + "번 곡 '" + songTitle(i) + "'에 투표할까요?\n제출 후에는 바꿀 수 없습니다.")) {
-      submit();
+    } else {
+      var txt = open.map(function (t) { return t.title + ": " + t.songs[state.selected[t.id]]; }).join("\n");
+      if (window.confirm(txt + "\n\n이대로 투표할까요? 제출 후에는 바꿀 수 없습니다.")) submit();
     }
   });
   dlg.addEventListener("close", function () {
     if (dlg.returnValue === "ok") submit();
   });
-  // 바깥 영역을 누르면 닫기
   dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close("cancel"); });
 
+  var REASONS = {
+    already_voted: "이 기기에서 이미 투표한 주제가 있습니다. 화면을 새로 불러왔습니다.",
+    closed: "정해진 인원이 모두 투표해서 투표가 끝났습니다.",
+    full: "참여 인원 상한에 도달해 더 이상 투표할 수 없습니다. 운영진에게 알려 주세요.",
+    bad_song: "곡 목록이 바뀌었습니다. 다시 골라 주세요.",
+    bad_topic: "주제 목록이 바뀌었습니다. 다시 골라 주세요."
+  };
+
   async function submit() {
-    if (state.busy || state.selected === null) return;
+    if (state.busy) return;
+    var choices = {};
+    openTopics().forEach(function (t) {
+      if (typeof state.selected[t.id] === "number") choices[t.id] = state.selected[t.id];
+    });
+    if (!Object.keys(choices).length) return;
     state.busy = true; syncChecked(); showNotice("");
-    var chosen = state.selected;
     try {
-      var r = await rpc("choir_cast_vote", { p_poll: POLL_ID, p_device: state.device, p_fp: state.fp, p_song: chosen });
+      var r = await rpc("choir_cast_votes", { p_group: GROUP_ID, p_device: state.device, p_fp: state.fp, p_choices: choices });
       state.busy = false;
       if (r && r.ok) {
-        state.mine = { voted: true, song: chosen };
-        state.poll.participants = Number(state.poll.participants || 0) + 1;
-        renderMeta();
-        renderVoted();
+        state.selected = {};
+        await load();
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       var reason = r && r.reason;
-      if (reason === "already_voted") { showNotice("이 기기에서는 이미 투표했습니다."); await load(); return; }
-      if (reason === "closed") { showNotice("투표가 마감되었습니다."); await load(); return; }
-      if (reason === "full") { showNotice("참여 인원 상한에 도달해 더 이상 투표할 수 없습니다. 운영진에게 알려 주세요."); syncChecked(); return; }
-      if (reason === "bad_song") { showNotice("곡 목록이 바뀌었습니다. 다시 골라 주세요."); state.selected = null; await load(); return; }
-      showNotice("투표를 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
-      syncChecked();
+      showNotice(REASONS[reason] || "투표를 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+      if (reason === "bad_song" || reason === "bad_topic") state.selected = {};
+      if (reason in REASONS && reason !== "full") await load(); else syncChecked();
     } catch (e) {
       state.busy = false;
       // 전송은 됐는데 응답만 끊겼을 수 있으니 서버에서 다시 확인
+      // (화면을 지우지 않도록 조용히 확인만 하고, 저장된 게 확인될 때만 새로 그림)
       try {
-        var m = await rpc("choir_my_vote", { p_poll: POLL_ID, p_device: state.device });
-        if (m && m.voted) { state.mine = m; renderVoted(); return; }
+        var g = await rpc("choir_group", { p_group: GROUP_ID, p_device: state.device });
+        var savedNow = g && g.topics && g.topics.some(function (t) { return hasMine(t) && choices.hasOwnProperty(t.id); });
+        if (savedNow) { state.selected = {}; await load(); return; }
       } catch (e2) {}
       showNotice("연결이 불안정해 투표가 저장되지 않았습니다. 선택은 그대로 두었으니 다시 눌러 주세요.");
       syncChecked();
     }
   }
 
-  // 다른 앱에 갔다가 돌아왔을 때 마감 여부를 새로 확인
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && state.poll && !state.busy && !(dlg.open)) {
-      var p = state.poll;
-      if (!p.closed && p.close_at && new Date(p.close_at).getTime() <= serverNow()) load();
-    }
+    if (document.visibilityState === "visible" && state.group && !state.busy && !dlg.open &&
+        !state.group.closed && openTopics().length === 0) load(true);
   });
 
   load();

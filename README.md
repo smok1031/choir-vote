@@ -5,7 +5,7 @@
 ## 처음 한 번 준비
 
 1. 합창단 전용 Supabase 프로젝트(합창단 선호도 조사)의 SQL Editor에 `supabase/schema.sql` 전체를 붙여 넣고 Run.
-2. 같은 곳에서 곡 제목과 마감 시각을 넣습니다.
+2. 곡 제목, 주제 이름, 참여 인원은 편집용 아티팩트에서 바꿉니다.
    ```sql
    update public.choir_polls
    set songs = '["곡1", "곡2", "곡3", "곡4", "곡5"]'::jsonb,
